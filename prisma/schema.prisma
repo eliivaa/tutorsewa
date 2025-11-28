@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider     = "postgresql"
   url          = env("DATABASE_URL")
-  relationMode = "prisma"
 }
 
 model User {
@@ -23,6 +22,23 @@ model User {
 
   accounts Account[]
   sessions Session[]
+  thriftItems ThriftItem[]
+}
+
+model ThriftItem {
+  id        String   @id @default(cuid())
+  title     String
+  subject   String?
+  condition String?
+  grade     String?
+  price     Int
+  contact   String
+  image     String?
+
+  sellerId  String
+  seller    User @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }
 
 model Account {
