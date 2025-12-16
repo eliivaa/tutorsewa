@@ -1,5 +1,6 @@
 import Image from 'next/image';
-import heroImage from '@/public/Online-Tutoring.png'; // Save your image in public folder
+import Link from 'next/link';
+import heroImage from '@/public/Online-Tutoring.png';
 
 export default function HeroSection() {
   return (
@@ -12,9 +13,14 @@ export default function HeroSection() {
           <button className="bg-[#006A6A] text-white px-5 py-2 rounded-md hover:bg-[#005454] transition">
             Get Started as Student
           </button>
-          <button className="border border-[#006A6A] text-[#006A6A] px-5 py-2 rounded-md hover:bg-[#006A6A] hover:text-white transition">
-            Become a Tutor
-          </button>
+
+          {/* <Link href="/tutor/register"> */}
+          <Link href="/tutor/auth">
+
+            <button className="border border-[#006A6A] text-[#006A6A] px-5 py-2 rounded-md hover:bg-[#006A6A] hover:text-white transition">
+              Become a Tutor
+            </button>
+          </Link>
         </div>
       </div>
       <Image src={heroImage} alt="Online Tutoring" className="w-80 md:w-96 mt-8 md:mt-0 rounded-md" />

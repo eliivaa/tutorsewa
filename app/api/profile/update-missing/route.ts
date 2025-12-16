@@ -1,48 +1,31 @@
-// import { NextResponse } from "next/server";
-// import { getServerSession } from "next-auth";
-// import { prisma } from "@/lib/prisma";
-// import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-
-// export async function POST(req: Request) {
-//   const session = await getServerSession(authOptions);
-
-//   if (!session?.user?.email)
-//     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-//   const { phone, grade } = await req.json();
-
-//   await prisma.user.update({
-//     where: { email: session.user.email },
-//     data: { phone, grade },
-//   });
-
-//   return NextResponse.json({ success: true });
-// }
-
-
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET!,
+  });
 
-  // User must be logged in through NextAuth
-  if (!session?.user?.email) {
+  if (!token?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { phone, grade } = await req.json();
 
-  // Save to database
   await prisma.user.update({
-    where: { email: session.user.email },
+    where: { email: token.email },
     data: {
       phone,
       grade,
     },
   });
 
-  return NextResponse.json({ success: true });
+  // JWT will refresh on next request automatically
+  return NextResponse.json({
+    success: true,
+    phone,
+    grade,
+  });
 }

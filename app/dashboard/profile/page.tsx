@@ -108,7 +108,7 @@ export default function ProfilePage() {
           <>
             <p><strong>Name:</strong> {user.name}</p>
             <p><strong>Phone:</strong> {user.phone || "Not set"}</p>
-            <p><strong>Grade:</strong> {user.grade || "Not set"}</p>
+            <p><strong>Level:</strong> {user.grade || "Not set"}</p>
 
             <button onClick={() => setEditMode(true)} className="mt-4 bg-[#006A6A] text-white px-4 py-2 rounded-md">
               Edit Profile

@@ -13,22 +13,23 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./*"]
     },
-    "types": ["next-auth", "./types/nextauth"]
+
+    // ✔ Load custom NextAuth types correctly
+    "types": ["next-auth", "node", "./types/next-auth"]
   },
+
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     "types/**/*.d.ts",
     ".next/types/**/*.ts"
-  ],
+, "next.config.ts", ],
+
   "exclude": ["node_modules"]
 }
+

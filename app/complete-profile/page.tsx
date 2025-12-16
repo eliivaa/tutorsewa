@@ -10,13 +10,19 @@ export default function CompleteProfile() {
 
   const submit = async () => {
     setLoading(true);
+
     const res = await fetch("/api/profile/update-missing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone, grade }),
     });
 
-    if (res.ok) router.push("/dashboard");
+    if (res.ok) {
+      // 🔥 force NextAuth to refresh JWT
+      await fetch("/api/auth/session");
+      router.replace("/dashboard");
+    }
+
     setLoading(false);
   };
 

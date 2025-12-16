@@ -1,146 +1,158 @@
-import NextAuth, { AuthOptions } from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import GoogleProvider from "next-auth/providers/google";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "@/lib/prisma";
-import { compare } from "bcrypt";
+// import NextAuth, { AuthOptions } from "next-auth";
+// import { PrismaAdapter } from "@auth/prisma-adapter";
+// import GoogleProvider from "next-auth/providers/google";
+// import CredentialsProvider from "next-auth/providers/credentials";
+// import { prisma } from "@/lib/prisma";
+// import { compare } from "bcryptjs";
 
-export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma),
+// export const authOptions: AuthOptions = {
+//   adapter: PrismaAdapter(prisma),
 
-  providers: [
-    // ------------------------------
-    // GOOGLE AUTH PROVIDER
-    // ------------------------------
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+//   session: {
+//     strategy: "jwt",
+//   },
 
-    // ------------------------------
-    // EMAIL + PASSWORD LOGIN
-    // ------------------------------
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "text" },
-        password: { label: "Password", type: "password" },
-      },
+//   providers: [
+//     // ==========================
+//     // GOOGLE AUTH
+//     // ==========================
+//     GoogleProvider({
+//       clientId: process.env.GOOGLE_CLIENT_ID!,
+//       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+//     }),
 
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) return null;
+//     // ==========================
+//     // EMAIL + PASSWORD AUTH
+//     // ==========================
+//     CredentialsProvider({
+//       name: "Credentials",
+//       credentials: {
+//         email: { label: "Email", type: "email" },
+//         password: { label: "Password", type: "password" },
+//       },
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+//       async authorize(credentials) {
+//         if (!credentials?.email || !credentials.password) {
+//           throw new Error("Missing credentials");
+//         }
 
-        if (!user) return null;
+//         const user = await prisma.user.findUnique({
+//           where: { email: credentials.email },
+//         });
 
-        // 🚨 MUST VERIFY EMAIL BEFORE LOGIN
-        if (!user.emailVerified) {
-          throw new Error("Please verify your email before logging in.");
-        }
+//         if (!user) {
+//           throw new Error("No account found with this email");
+//         }
 
-        // Google user has no password → block credential login
-        if (!user.password) {
-          throw new Error("This account uses Google login only.");
-        }
+//         // 🔒 Email must be verified
+//         if (!user.emailVerified) {
+//           throw new Error("Please verify your email before logging in.");
+//         }
 
-        const isValid = await compare(credentials.password, user.password);
-        if (!isValid) return null;
+//         // 🔐 Block Google-only accounts
+//         if (!user.password) {
+//           throw new Error("This account uses Google login only.");
+//         }
 
-        return user;
-      },
-    }),
-  ],
+//         const isValid = await compare(credentials.password, user.password);
+//         if (!isValid) {
+//           throw new Error("Invalid email or password");
+//         }
 
-  session: { strategy: "jwt" },
+//         return user;
+//       },
+//     }),
+//   ],
 
-  pages: {
-    signIn: "/login",
-    error: "/login", // show verification errors on login page
-  },
+//   pages: {
+//     signIn: "/login",
+//     error: "/login",
+//   },
 
-  callbacks: {
-    // ======================================================
-    // JWT CALLBACK — runs at login & every session refresh
-    // ======================================================
-    async jwt({ token, user, account }) {
+//   callbacks: {
+//     // ======================================================
+//     // JWT CALLBACK
+//     // ======================================================
+//     async jwt({ token, user, account }) {
+//       // 🔥 ALWAYS set user ID on login
+//       if (user) {
+//         token.id = user.id;
+//       }
 
-      // MANUAL LOGIN
-if (user && account?.provider === "credentials") {
-  token.loginType = "manual";
-}
+//       // Track login type
+//       if (account) {
+//         token.loginType = account.provider; // "google" | "credentials"
+//       }
 
-      // Track login type (google / credentials)
-      if (account) {
-        token.loginType = account.provider; // 🔥 IMPORTANT
-      }
+//       // FIRST-TIME GOOGLE LOGIN
+//       if (account?.provider === "google" && user) {
+//         let existingUser = await prisma.user.findUnique({
+//           where: { email: user.email! },
+//         });
 
-      // FIRST TIME GOOGLE LOGIN
-      if (account?.provider === "google" && user) {
-        token.id = user.id;
+//         if (!existingUser) {
+//           existingUser = await prisma.user.create({
+//             data: {
+//               name: user.name!,
+//               email: user.email!,
+//               image: user.image!,
+//               phone: null,
+//               grade: null,
+//             },
+//           });
+//         }
 
-        let existing = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
+//         token.phone = existingUser.phone;
+//         token.grade = existingUser.grade;
+//         token.image = existingUser.image;
+//       }
 
-        // If Google user doesn't exist → create minimal profile
-        if (!existing) {
-          existing = await prisma.user.create({
-            data: {
-              name: user.name!,
-              email: user.email!,
-              image: user.image!,
-              phone: null,
-              grade: null,
-            },
-          });
-        }
+//       // ALWAYS sync latest DB data
+//       if (token.id) {
+//         const dbUser = await prisma.user.findUnique({
+//           where: { id: token.id },
+//         });
 
-        token.phone = existing.phone;
-        token.grade = existing.grade;
-        token.image = existing.image;
-      }
+//         if (dbUser) {
+//           token.phone = dbUser.phone;
+//           token.grade = dbUser.grade;
+//           token.image = dbUser.image;
+//         }
+//       }
 
-      // ALWAYS LOAD latest DB values
-      if (token.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id },
-        });
+//       return token;
+//     },
 
-        if (dbUser) {
-          token.phone = dbUser.phone;
-          token.grade = dbUser.grade;
-          token.image = dbUser.image;
-        }
-      }
+//     // ======================================================
+//     // SESSION CALLBACK
+//     // ======================================================
+//     async session({ session, token }) {
+//       if (session.user) {
+//         session.user.id = token.id as string;
+//         session.user.phone = token.phone ?? null;
+//         session.user.grade = token.grade ?? null;
+//         session.user.image = token.image ?? null;
+//         session.user.loginType = token.loginType as string;
 
-      return token;
-    },
+//         // 🔥 Profile completion logic
+//         if (token.loginType === "google") {
+//           session.user.profileIncomplete = !token.phone || !token.grade;
+//         } else {
+//           session.user.profileIncomplete = false;
+//         }
+//       }
 
-    // ======================================================
-    // SESSION CALLBACK — sends cleaned data to frontend
-    // ======================================================
-    async session({ session, token }) {
-      session.user.id = token.id;
-      session.user.phone = token.phone ?? null;
-      session.user.grade = token.grade ?? null;
-      session.user.image = token.image ?? null;
-      session.user.loginType = token.loginType;
+//       return session;
+//     },
+//   },
+// };
 
-      // 🔥 ONLY GOOGLE USERS MUST COMPLETE PROFILE
-      if (token.loginType === "google") {
-        session.user.profileIncomplete = !token.phone || !token.grade;
-      } else {
-        // manual registered users already filled phone + grade
-        session.user.profileIncomplete = false;
-      }
+// const handler = NextAuth(authOptions);
+// export { handler as GET, handler as POST };
 
-      return session;
-    },
-  },
-};
+
+import NextAuth from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

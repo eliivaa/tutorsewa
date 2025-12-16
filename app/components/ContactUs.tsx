@@ -10,10 +10,6 @@ export default function ContactUs() {
 
       <div className="flex flex-col md:flex-row justify-center gap-6 text-sm">
         <div>
-          <h3 className="font-semibold mb-2 text-[#006A6A]">📍 Office</h3>
-          <p>Kathmandu, Nepal</p>
-        </div>
-        <div>
           <h3 className="font-semibold mb-2 text-[#006A6A]">📧 Email</h3>
           <p>support@tutorsewa.com</p>
         </div>
