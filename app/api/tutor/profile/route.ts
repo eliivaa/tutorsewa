@@ -83,7 +83,7 @@ export async function PUT(req: NextRequest) {
         subjects,
         rate,
         experience,
-        level,
+        // level,
       },
     });
 

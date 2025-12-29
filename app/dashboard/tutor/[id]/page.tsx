@@ -1,162 +1,9 @@
-// "use client";
-
-// import { useEffect, useState } from "react";
-// import { useParams } from "next/navigation";
-
-// interface TutorProfile {
-//   id: string;
-//   name: string;
-//   photo?: string | null;
-//   bio?: string | null;
-//   subjects: string[];
-//   experience?: string | null;
-//   rate?: number | null;
-// }
-
-// export default function TutorProfilePage() {
-//   const { id } = useParams();
-//   const [tutor, setTutor] = useState<TutorProfile | null>(null);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     if (!id) return;
-
-//     fetch(`/api/tutor/${id}`)
-//       .then((res) => res.json())
-//       .then((data) => {
-//         setTutor(data);
-//         setLoading(false);
-//       });
-//   }, [id]);
-
-//   if (loading) {
-//     return <p className="p-8 text-[#004B4B]">Loading tutor profile...</p>;
-//   }
-
-//   if (!tutor) {
-//     return <p className="p-8 text-red-600">Tutor not found.</p>;
-//   }
-
-//   return (
-//     <div className="p-6 max-w-6xl mx-auto space-y-6">
-
-//       {/* ================= TOP SECTION ================= */}
-//       <div className="bg-white border rounded-xl p-5 flex items-center justify-between">
-
-//         {/* LEFT */}
-//         <div className="flex items-center gap-4">
-//           {tutor.photo ? (
-//             <img
-//               src={tutor.photo}
-//               className="w-16 h-16 rounded-full object-cover border"
-//               alt={tutor.name}
-//             />
-//           ) : (
-//             <div className="w-16 h-16 rounded-full bg-[#E6F9F5] flex items-center justify-center text-xl font-bold text-[#004B4B]">
-//               {tutor.name.charAt(0)}
-//             </div>
-//           )}
-
-//           <div>
-//             <h1 className="text-lg font-semibold text-[#004B4B]">
-//               {tutor.name}
-//             </h1>
-
-//             <p className="text-sm text-yellow-600">
-//               ⭐ 4.5 <span className="text-gray-500">(55 reviews)</span>
-//             </p>
-
-//             {/* ✅ UPDATED SUBJECT DISPLAY */}
-//             <div className="flex gap-2 mt-2 flex-wrap">
-//               {tutor.subjects.map((s, i) => {
-//                 const [subject, level] = s.split("|");
-
-//                 return (
-//                   <span
-//                     key={i}
-//                     className="px-3 py-1 text-xs bg-[#4CB6B6] text-white rounded-full"
-//                   >
-//                     {subject} {level && <span className="opacity-90">({level})</span>}
-//                   </span>
-//                 );
-//               })}
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* RIGHT */}
-//         <button
-//           onClick={() => alert("Messaging will be enabled after booking")}
-//           className="px-4 py-2 text-sm border rounded-lg hover:bg-[#E6F9F5]"
-//         >
-//           💬 Message Tutor
-//         </button>
-//       </div>
-
-//       {/* ================= ABOUT ================= */}
-//       <div className="bg-white border rounded-xl p-5">
-//         <h2 className="font-semibold mb-1">About the tutor</h2>
-//         <p className="text-sm text-gray-700 leading-relaxed max-w-3xl">
-//           {tutor.bio ||
-//             "Experienced tutor passionate about making complex subjects easy to understand."}
-//         </p>
-//       </div>
-
-//       {/* ================= GRID ================= */}
-//       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-//         {/* QUALIFICATIONS */}
-//         <div className="bg-white border rounded-xl p-5 md:col-span-1">
-//           <h2 className="font-semibold mb-1">Qualifications</h2>
-//           <p className="text-sm text-gray-700">
-//             {tutor.experience || "2 years teaching experience"}
-//           </p>
-//         </div>
-
-//         {/* BOOKING */}
-//         <div className="bg-white border rounded-xl p-5 md:col-span-2 flex justify-between items-center">
-//           <div>
-//             <h2 className="font-semibold mb-1">Booking</h2>
-//             <p className="font-semibold text-[#004B4B]">
-//               Rs {tutor.rate ?? 1200}/hr
-//             </p>
-//             <p className="text-sm text-gray-600">
-//               Choose session type, date and time on next step
-//             </p>
-//           </div>
-
-//           <button className="px-4 py-2 border rounded-lg hover:bg-[#E6F9F5]">
-//             📅 Book a session
-//           </button>
-//         </div>
-//       </div>
-
-//       {/* ================= REVIEWS ================= */}
-//       <div className="bg-white border rounded-xl p-5">
-//         <h2 className="font-semibold mb-3">Students Reviews</h2>
-
-//         <div className="space-y-3 max-w-2xl">
-//           <div className="border rounded-lg p-3">
-//             <p className="text-sm font-medium">Great exam preparation tips!</p>
-//             <p className="text-xs text-gray-500">Hera Rai</p>
-//           </div>
-
-//           <div className="border rounded-lg p-3">
-//             <p className="text-sm font-medium">Clear and engaging lessons</p>
-//             <p className="text-xs text-gray-500">Munni Khadka</p>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 interface TutorProfile {
   id: string;
@@ -370,9 +217,26 @@ export default function TutorProfilePage() {
             </p>
           </div>
 
-          <button className="px-4 py-2 border rounded-lg hover:bg-[#E6F9F5]">
-            📅 Book a session
-          </button>
+      <Link href={`/dashboard/tutor/${tutor.id}/book`}>
+  <button
+    className="
+      px-5 py-2.5
+      border border-[#4CB6B6]
+      rounded-lg
+      text-sm font-medium
+      text-[#004B4B]
+      transition-all duration-200
+      hover:bg-[#E6F9F5]
+      hover:shadow-md
+      hover:-translate-y-[1px]
+      active:scale-95
+      flex items-center gap-2
+    "
+  >
+    📅 Book a session
+  </button>
+</Link>
+
         </div>
       </div>
 
