@@ -136,29 +136,32 @@
 //                 {t.name}
 //               </td>
 
+//               {/* ✅ CONTACT: ONLY PHONE */}
 //               <td className="p-3">
-//                 <div>{t.email}</div>
-//                 <div className="text-sm text-gray-600">{t.phone}</div>
+//                 <div className="text-sm">{t.phone}</div>
 //               </td>
 
-//              <td className="p-3">
-//   <div className="flex flex-wrap gap-1">
-//     {t.subjects.map((s, i) => {
-//       const [subject, level] = s.split("|");
-//       return (
-//         <span
-//           key={i}
-//           className="px-2 py-1 text-xs bg-[#E6F9F5] text-[#004B4B] rounded"
-//         >
-//           {subject} ({level})
-//         </span>
-//       );
-//     })}
-//   </div>
-// </td>
+//               {/* ✅ SUBJECTS: ONLY SUBJECT NAME */}
+//               <td className="p-3">
+//                 <div className="flex flex-wrap gap-1">
+//                   {t.subjects.map((s, i) => {
+//                     const subject = s.split("|")[0];
+//                     return (
+//                       <span
+//                         key={i}
+//                         className="px-2 py-1 text-xs bg-[#E6F9F5] text-[#004B4B] rounded"
+//                       >
+//                         {subject}
+//                       </span>
+//                     );
+//                   })}
+//                 </div>
+//               </td>
 
 //               <td className="p-3">{t.experience || "—"}</td>
-//               <td className="p-3"><StatusBadge status={t.status} /></td>
+//               <td className="p-3">
+//                 <StatusBadge status={t.status} />
+//               </td>
 
 //               <td className="p-3 flex gap-2">
 //                 <Link href={`/admin/tutors/${t.id}`}>
@@ -264,6 +267,7 @@
 // }
 
 
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -350,7 +354,7 @@ export default function AdminTutorManagement() {
     <div className="p-8 bg-[#F2EFE7] min-h-screen text-[#004B4B]">
       <h1 className="text-3xl font-bold mb-6">Tutor Management</h1>
 
-      {/* STAT CARDS */}
+      {/* STATS */}
       <div className="grid grid-cols-4 gap-4 mb-8">
         <StatBox label="Total Tutors" value={tutors.length} />
         <StatBox label="Approved" value={tutors.filter(t => t.status === "APPROVED").length} />
@@ -402,33 +406,25 @@ export default function AdminTutorManagement() {
                 {t.name}
               </td>
 
-              {/* ✅ CONTACT: ONLY PHONE */}
-              <td className="p-3">
-                <div className="text-sm">{t.phone}</div>
-              </td>
+              <td className="p-3">{t.phone}</td>
 
-              {/* ✅ SUBJECTS: ONLY SUBJECT NAME */}
               <td className="p-3">
                 <div className="flex flex-wrap gap-1">
-                  {t.subjects.map((s, i) => {
-                    const subject = s.split("|")[0];
-                    return (
-                      <span
-                        key={i}
-                        className="px-2 py-1 text-xs bg-[#E6F9F5] text-[#004B4B] rounded"
-                      >
-                        {subject}
-                      </span>
-                    );
-                  })}
+                  {t.subjects.map((s, i) => (
+                    <span key={i} className="px-2 py-1 text-xs bg-[#E6F9F5] rounded">
+                      {s.split("|")[0]}
+                    </span>
+                  ))}
                 </div>
               </td>
 
               <td className="p-3">{t.experience || "—"}</td>
+
               <td className="p-3">
                 <StatusBadge status={t.status} />
               </td>
 
+              {/* ✅ FIXED ACTION LOGIC */}
               <td className="p-3 flex gap-2">
                 <Link href={`/admin/tutors/${t.id}`}>
                   <button className="px-4 py-2 rounded-full bg-blue-100 text-blue-700 border">
@@ -443,7 +439,7 @@ export default function AdminTutorManagement() {
                   </>
                 )}
 
-                {t.status !== "SUSPENDED" && t.status !== "REJECTED" && (
+                {t.status === "APPROVED" && (
                   <ActionButton label="Suspend" color="red" onClick={() => updateStatus(t.id, "SUSPENDED")} />
                 )}
 
@@ -459,7 +455,7 @@ export default function AdminTutorManagement() {
   );
 }
 
-/* ===================== COMPONENTS ===================== */
+/* ===================== HELPERS ===================== */
 
 function StatBox({ label, value }: { label: string; value: number }) {
   return (
@@ -470,21 +466,11 @@ function StatBox({ label, value }: { label: string; value: number }) {
   );
 }
 
-function FilterButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+function FilterButton({ label, active, onClick }: any) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded border ${
-        active ? "bg-[#004B4B] text-white" : "bg-white"
-      }`}
+      className={`px-4 py-2 rounded border ${active ? "bg-[#004B4B] text-white" : "bg-white"}`}
     >
       {label}
     </button>
@@ -492,40 +478,32 @@ function FilterButton({
 }
 
 function StatusBadge({ status }: { status: TutorStatus }) {
-  const styles: Record<TutorStatus, string> = {
-    APPROVED: "bg-green-100 text-green-700 border border-green-300",
-    PENDING: "bg-yellow-100 text-yellow-700 border border-yellow-300",
-    SUSPENDED: "bg-red-100 text-red-700 border border-red-300",
-    REJECTED: "bg-gray-200 text-gray-700 border border-gray-400",
+  const styles: any = {
+    APPROVED: "bg-green-100 text-green-700",
+    PENDING: "bg-yellow-100 text-yellow-700",
+    SUSPENDED: "bg-red-100 text-red-700",
+    REJECTED: "bg-gray-200 text-gray-700",
   };
 
   return (
-    <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${styles[status]}`}>
+    <span className={`px-4 py-1 rounded-full font-semibold ${styles[status]}`}>
       {status}
     </span>
   );
 }
 
-function ActionButton({
-  label,
-  color,
-  onClick,
-}: {
-  label: string;
-  color: "green" | "red" | "orange" | "gray";
-  onClick: () => void;
-}) {
-  const styles: Record<string, string> = {
-    green: "bg-green-100 text-green-700 border",
-    red: "bg-red-100 text-red-700 border",
-    orange: "bg-orange-100 text-orange-700 border",
-    gray: "bg-gray-200 text-gray-700 border",
+function ActionButton({ label, color, onClick }: any) {
+  const styles: any = {
+    green: "bg-green-100 text-green-700",
+    red: "bg-red-100 text-red-700",
+    orange: "bg-orange-100 text-orange-700",
+    gray: "bg-gray-200 text-gray-700",
   };
 
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-full font-medium transition ${styles[color]}`}
+      className={`px-4 py-2 rounded-full border ${styles[color]}`}
     >
       {label}
     </button>

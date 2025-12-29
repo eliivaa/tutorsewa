@@ -6,9 +6,10 @@
 
 // export async function POST(req: Request) {
 //   try {
-//     // 🔐 ADMIN AUTH CHECK
-//     const cookie = req.headers.get("cookie") || "";
-//     const token = cookie.split("admin_token=")[1];
+//     // 🔐 ADMIN AUTH (SAFE COOKIE PARSE)
+//     const cookies = req.headers.get("cookie") || "";
+//     const match = cookies.match(/admin_token=([^;]+)/);
+//     const token = match?.[1];
 
 //     if (!token) {
 //       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,15 +33,28 @@
 //       );
 //     }
 
+//     const tutor = await prisma.tutor.findUnique({
+//       where: { id: tutorId },
+//     });
+
+//     if (!tutor) {
+//       return NextResponse.json(
+//         { error: "Tutor not found" },
+//         { status: 404 }
+//       );
+//     }
+
 //     const updatedTutor = await prisma.tutor.update({
 //       where: { id: tutorId },
 //       data: { status },
 //     });
 
 //     return NextResponse.json({
+//       success: true,
 //       message: `Tutor ${status.toLowerCase()} successfully`,
 //       tutor: updatedTutor,
 //     });
+
 //   } catch (err) {
 //     console.error("UPDATE STATUS ERROR:", err);
 //     return NextResponse.json(
@@ -54,11 +68,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 
-const VALID_STATUSES = ["APPROVED", "REJECTED", "SUSPENDED"];
-
 export async function POST(req: Request) {
   try {
-    // 🔐 ADMIN AUTH (SAFE COOKIE PARSE)
     const cookies = req.headers.get("cookie") || "";
     const match = cookies.match(/admin_token=([^;]+)/);
     const token = match?.[1];
@@ -78,21 +89,28 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!VALID_STATUSES.includes(status)) {
-      return NextResponse.json(
-        { error: "Invalid status value" },
-        { status: 400 }
-      );
-    }
-
     const tutor = await prisma.tutor.findUnique({
       where: { id: tutorId },
     });
 
     if (!tutor) {
+      return NextResponse.json({ error: "Tutor not found" }, { status: 404 });
+    }
+
+    // ✅ STRICT STATUS TRANSITIONS
+    const VALID_TRANSITIONS: Record<string, string[]> = {
+      PENDING: ["APPROVED", "REJECTED"],
+      APPROVED: ["SUSPENDED"],
+      SUSPENDED: ["APPROVED"],
+      REJECTED: [],
+    };
+
+    if (!VALID_TRANSITIONS[tutor.status]?.includes(status)) {
       return NextResponse.json(
-        { error: "Tutor not found" },
-        { status: 404 }
+        {
+          error: `Invalid status transition from ${tutor.status} to ${status}`,
+        },
+        { status: 400 }
       );
     }
 
