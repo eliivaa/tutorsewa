@@ -7,56 +7,200 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//////////////////////
+// ENUMS
+//////////////////////
+
+enum TutorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum BookingStatus {
+  REQUESTED
+  ACCEPTED
+  REJECTED
+  PAYMENT_PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum SessionType {
+  ONE_TO_ONE
+  GROUP
+}
+
+enum AvailabilityType {
+  ONE_TO_ONE
+  GROUP
+}
+
+enum PackageType {
+  SINGLE_SESSION
+  MONTHLY_PACKAGE
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+//////////////////////
+// USER
+//////////////////////
+
 model User {
-  id            String       @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String?
-  email         String       @unique
+  email         String   @unique
   password      String?
   phone         String?
   grade         String?
   image         String?
   emailVerified DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
   verifyToken   String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
   accounts      Account[]
-  Review        Review[]
   sessions      Session[]
   thriftItems   ThriftItem[]
+  reviews       Review[]
+  bookings      Booking[]
 }
 
+//////////////////////
+// TUTOR
+//////////////////////
+
 model Tutor {
-  id         String      @id @default(cuid())
-  name       String
-  email      String      @unique
-  phone      String
-  password   String
-  photo      String?
-  bio        String?
-  subjects   String[]
-  experience String?
-  level      String?
-  cvUrl      String?
-  idUrl      String?
-  rate       Int?
-  status     TutorStatus @default(PENDING)
-  createdAt  DateTime    @default(now())
-  reviews    Review[]
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String
+  password     String
+
+  photo        String?
+  bio          String?
+  subjects     String[]
+  experience   String?
+  cvUrl        String?
+  idUrl        String?
+  rate         Int?
+
+  status       TutorStatus @default(PENDING)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reviews        Review[]
+  bookings       Booking[]
+  availabilities TutorAvailability[]
 }
+
+//////////////////////
+// TUTOR AVAILABILITY
+//////////////////////
+
+model TutorAvailability {
+  id           String           @id @default(cuid())
+  tutorId      String
+
+  dayOfWeek    DayOfWeek
+  startTime    String           // HH:MM
+  endTime      String           // HH:MM
+  durationMin  Int
+
+  sessionType  AvailabilityType
+  maxStudents  Int?
+
+  isActive     Boolean          @default(true)
+
+  tutor        Tutor            @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([tutorId, dayOfWeek, startTime, endTime, sessionType])
+}
+
+//////////////////////
+// BOOKINGS
+//////////////////////
+
+model Booking {
+  id              String        @id @default(cuid())
+
+  studentId       String
+  tutorId         String
+  availabilityId  String
+
+  student         User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutor           Tutor         @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  availability    TutorAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+
+  sessionType     SessionType
+  subject         String
+  level           String?
+
+  bookingDate     DateTime
+  startTime       DateTime
+  endTime         DateTime
+  durationMin     Int
+
+  maxStudents     Int?
+  currentCount    Int           @default(1)
+
+  packageType     PackageType   @default(SINGLE_SESSION)
+  packageMonths   Int?
+
+  hourlyRate      Int
+  totalAmount     Int
+
+  note            String?
+
+  status          BookingStatus @default(REQUESTED)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([tutorId, startTime, endTime])
+}
+
+//////////////////////
+// REVIEWS
+//////////////////////
 
 model Review {
   id        String   @id @default(cuid())
   rating    Int
   comment   String
+
   tutorId   String
   userId    String
-  createdAt DateTime @default(now()) @db.Timestamp(6)
-  updatedAt DateTime @default(now()) @db.Timestamp(6)
-  tutor     Tutor    @relation(fields: [tutorId], references: [id])
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([tutorId, userId], map: "Review_tutorId_userId_unique")
+  tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tutorId, userId])
 }
+
+//////////////////////
+// THRIFT ITEMS
+//////////////////////
 
 model ThriftItem {
   id        String   @id @default(cuid())
@@ -67,17 +211,24 @@ model ThriftItem {
   contact   String
   image     String?
   grade     String?
+
   sellerId  String
-  createdAt DateTime @default(now())
   seller    User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }
 
+//////////////////////
+// NEXTAUTH
+//////////////////////
+
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
+  id                String @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+
   refresh_token      String?
   access_token       String?
   expires_at         Int?
@@ -87,7 +238,8 @@ model Account {
   session_state      String?
   oauth_token_secret String?
   oauth_token        String?
-  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -97,6 +249,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -108,16 +261,13 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model Admin {
-  id       String @id @default(cuid())
-  email    String @unique
-  password String
-  role     String @default("ADMIN")
-}
+//////////////////////
+// ADMIN
+//////////////////////
 
-enum TutorStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  SUSPENDED
+model Admin {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  password String
+  role     String   @default("ADMIN")
 }
