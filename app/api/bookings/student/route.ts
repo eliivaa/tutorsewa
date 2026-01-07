@@ -5,19 +5,26 @@
 
 // export async function GET() {
 //   const session = await getServerSession(authOptions);
+
 //   if (!session?.user?.id) {
 //     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 //   }
 
 //   const bookings = await prisma.booking.findMany({
 //     where: { studentId: session.user.id },
-//     include: { tutor: true },
+//     include: {
+//       tutor: {
+//        select: {
+//         name: true,
+//         photo: true,   
+//       },
+//     },
+//     },
 //     orderBy: { createdAt: "desc" },
 //   });
 
 //   return NextResponse.json({ bookings });
 // }
-
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -28,20 +35,36 @@ export async function GET() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
   }
 
   const bookings = await prisma.booking.findMany({
-    where: { studentId: session.user.id },
-    include: {
+    where: {
+      studentId: session.user.id,
+    },
+    select: {
+      id: true,
+      status: true,
+      sessionType: true,
+      bookingDate: true,
+      startTime: true,
+
+      subject: true,   // ✅ subject (Math)
+      level: true,     // ✅ level (Grade 10)
+
       tutor: {
-       select: {
-        name: true,
-        photo: true,   
+        select: {
+          name: true,
+          photo: true,
+        },
       },
     },
+    orderBy: {
+      createdAt: "desc",
     },
-    orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json({ bookings });

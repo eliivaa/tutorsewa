@@ -11,30 +11,32 @@ type SessionType = "ONE_TO_ONE" | "GROUP";
 
 type AvailabilitySlot = {
   id: string;
-  dayOfWeek:
-    | "MONDAY"
-    | "TUESDAY"
-    | "WEDNESDAY"
-    | "THURSDAY"
-    | "FRIDAY"
-    | "SATURDAY"
-    | "SUNDAY";
-  startTime: string; // HH:MM
+  date: string;
+  subject: string;
+  level?: string | null;
+  startTime: string;
   endTime: string;
   durationMin: number;
   sessionType: SessionType;
   maxStudents?: number | null;
 };
 
-const DAY_LABEL: Record<string, string> = {
-  MONDAY: "Monday",
-  TUESDAY: "Tuesday",
-  WEDNESDAY: "Wednesday",
-  THURSDAY: "Thursday",
-  FRIDAY: "Friday",
-  SATURDAY: "Saturday",
-  SUNDAY: "Sunday",
-};
+/* ======================
+   HELPERS
+====================== */
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/* ======================
+   COMPONENT
+====================== */
 
 export default function BookSessionPage() {
   const { id: tutorId } = useParams();
@@ -44,6 +46,8 @@ export default function BookSessionPage() {
     useState<SessionType>("ONE_TO_ONE");
 
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [subject, setSubject] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] =
     useState<AvailabilitySlot | null>(null);
 
@@ -54,90 +58,98 @@ export default function BookSessionPage() {
      LOAD AVAILABILITY
   ====================== */
 
-  async function loadAvailability(type: SessionType) {
+  async function loadAvailability() {
+    setSelectedDate(null);
     setSelectedSlot(null);
 
-    try {
-      const res = await fetch(
-        `/api/tutor/availability/${tutorId}?sessionType=${type}`,
-        { cache: "no-store" }
-      );
+    const res = await fetch(
+      `/api/tutor/availability/${tutorId}?sessionType=${sessionType}`,
+      { cache: "no-store" }
+    );
 
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : null;
-
-      if (!res.ok) {
-        alert(data?.error || "Failed to load availability");
-        setSlots([]);
-        return;
-      }
-
-      setSlots(data?.slots || []);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to load availability");
-      setSlots([]);
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data?.error || "Failed to load availability");
+      return;
     }
+
+    setSlots(data.slots || []);
+
+    // auto-pick first subject
+    const subjects = Array.from(
+      new Set((data.slots || []).map((s: AvailabilitySlot) => s.subject))
+    );
+   setSubject((subjects[0] || null) as string | null);
+
   }
 
   useEffect(() => {
-    loadAvailability(sessionType);
+    loadAvailability();
   }, [sessionType]);
 
   /* ======================
-     GROUP BY DAY
+     SUBJECT FILTER
   ====================== */
 
-  const grouped = useMemo(() => {
+  const subjects = useMemo(() => {
+    return Array.from(new Set(slots.map((s) => s.subject)));
+  }, [slots]);
+
+  const subjectSlots = slots.filter(
+    (s) => !subject || s.subject === subject
+  );
+
+  /* ======================
+     GROUP BY DATE
+  ====================== */
+
+  const groupedByDate = useMemo(() => {
     const map: Record<string, AvailabilitySlot[]> = {};
-    for (const s of slots) {
-      (map[s.dayOfWeek] ||= []).push(s);
+    for (const slot of subjectSlots) {
+      (map[slot.date] ||= []).push(slot);
     }
     return map;
-  }, [slots]);
+  }, [subjectSlots]);
+
+  const availableDates = Object.keys(groupedByDate).sort();
 
   /* ======================
      SUBMIT BOOKING
   ====================== */
 
   async function submitBooking() {
-    if (!selectedSlot) {
-      alert("Please select a time slot");
+  if (!selectedSlot) {
+    alert("Please select a time slot");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await fetch("/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tutorId,
+        availabilityId: selectedSlot.id,
+        sessionType,
+        subject: selectedSlot.subject, // ✅ FIX
+        level: selectedSlot.level,     // ✅ FIX
+        note,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data?.error || "Booking failed");
       return;
     }
 
-    setLoading(true);
-
-    try {
-    await fetch("/api/bookings", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    tutorId,
-    availabilityId: selectedSlot.id, // ✅ REQUIRED (MAIN FIX)
-    sessionType,
-    subject: "General",
-    bookingDate: new Date().toISOString().split("T")[0],
-    startTime: selectedSlot.startTime,
-    durationMin: selectedSlot.durationMin,
-    packageType: "SINGLE_SESSION",
-    maxStudents:
-      sessionType === "GROUP"
-        ? selectedSlot.maxStudents
-        : 1,
-    note,
-  }),
-});
-
-
-      router.push("/dashboard/sessions");
-    } catch (err) {
-      console.error(err);
-      alert("Booking failed");
-    } finally {
-      setLoading(false);
-    }
+    router.push("/dashboard/sessions");
+  } finally {
+    setLoading(false);
   }
+}
 
   /* ======================
      UI
@@ -152,81 +164,111 @@ export default function BookSessionPage() {
 
       {/* SESSION TYPE */}
       <div className="bg-white border rounded-xl p-5">
-        <p className="font-medium mb-3">Choose session type</p>
-
+        <p className="font-medium mb-3">Session type</p>
         <div className="flex gap-3">
           {(["ONE_TO_ONE", "GROUP"] as SessionType[]).map((type) => (
             <button
               key={type}
               onClick={() => setSessionType(type)}
-              className={`px-4 py-2 rounded-lg border transition ${
+              className={`px-4 py-2 rounded-lg border ${
                 sessionType === type
                   ? "bg-[#4CB6B6] text-white"
                   : "hover:bg-[#E6F9F5]"
               }`}
             >
-              {type === "ONE_TO_ONE"
-                ? "1-to-1 Online Class"
-                : "Group Online Class"}
+              {type === "ONE_TO_ONE" ? "1-to-1 Online Class" : "Group Online Class"}
             </button>
           ))}
         </div>
       </div>
 
-      {/* AVAILABILITY */}
+      {/* SUBJECT */}
+      {subjects.length > 0 && (
+        <div className="bg-white border rounded-xl p-5">
+          <p className="font-medium mb-3">Choose subject</p>
+          <div className="flex gap-2 flex-wrap">
+            {subjects.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setSubject(s);
+                  setSelectedDate(null);
+                  setSelectedSlot(null);
+                }}
+                className={`px-4 py-2 rounded-lg border ${
+                  subject === s
+                    ? "bg-[#4CB6B6] text-white"
+                    : "hover:bg-[#E6F9F5]"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* DATES */}
       <div className="bg-white border rounded-xl p-5">
-        <p className="font-medium mb-3">Available time slots</p>
+        <p className="font-medium mb-3">Available dates</p>
 
-        {slots.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            No availability for this session type.
-          </p>
+        {availableDates.length === 0 ? (
+          <p className="text-sm text-gray-500">No slots available.</p>
         ) : (
-          <div className="space-y-4">
-            {Object.keys(grouped).map((day) => (
-              <div key={day}>
-                <p className="font-medium text-[#004B4B] mb-2">
-                  {DAY_LABEL[day]}
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {grouped[day].map((slot) => {
-                    const active =
-                      selectedSlot?.id === slot.id;
-
-                    return (
-                      <button
-                        key={slot.id}
-                        onClick={() => setSelectedSlot(slot)}
-                        className={`px-4 py-2 text-sm rounded-lg border transition ${
-                          active
-                            ? "bg-[#4CB6B6] text-white"
-                            : "hover:bg-[#E6F9F5]"
-                        }`}
-                      >
-                        {slot.startTime} – {slot.endTime}{" "}
-                        {slot.sessionType === "GROUP" &&
-                          slot.maxStudents && (
-                            <span className="ml-1 text-xs opacity-80">
-                              (max {slot.maxStudents})
-                            </span>
-                          )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+          <div className="flex flex-wrap gap-2">
+            {availableDates.map((date) => (
+              <button
+                key={date}
+                onClick={() => {
+                  setSelectedDate(date);
+                  setSelectedSlot(null);
+                }}
+                className={`px-4 py-2 rounded-lg border ${
+                  selectedDate === date
+                    ? "bg-[#4CB6B6] text-white"
+                    : "hover:bg-[#E6F9F5]"
+                }`}
+              >
+                {formatDate(date)}
+              </button>
             ))}
           </div>
         )}
       </div>
 
+      {/* TIME SLOTS */}
+      {selectedDate && (
+        <div className="bg-white border rounded-xl p-5">
+          <p className="font-medium mb-3">Available time slots</p>
+
+          <div className="flex flex-wrap gap-2">
+            {groupedByDate[selectedDate]?.map((slot) => (
+              <button
+                key={slot.id}
+                onClick={() => setSelectedSlot(slot)}
+                className={`px-4 py-2 text-sm rounded-lg border ${
+                  selectedSlot?.id === slot.id
+                    ? "bg-[#4CB6B6] text-white"
+                    : "hover:bg-[#E6F9F5]"
+                }`}
+              >
+                {slot.startTime} – {slot.endTime}
+                {slot.level && (
+                  <span className="ml-1 text-xs opacity-80">
+                    ({slot.level})
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* NOTE */}
       <div className="bg-white border rounded-xl p-5">
-        <p className="font-medium mb-2">Additional note (optional)</p>
+        <p className="font-medium mb-2">Note (optional)</p>
         <textarea
           className="w-full border rounded-lg p-3 text-sm"
-          placeholder="Briefly describe your goals..."
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
@@ -237,9 +279,9 @@ export default function BookSessionPage() {
         <button
           onClick={submitBooking}
           disabled={loading || !selectedSlot}
-          className="px-6 py-2 bg-[#4CB6B6] text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+          className="px-6 py-2 bg-[#4CB6B6] text-white rounded-lg disabled:opacity-50"
         >
-          {loading ? "Booking..." : "Confirm & Continue"}
+          {loading ? "Booking..." : "Confirm Booking"}
         </button>
       </div>
     </div>

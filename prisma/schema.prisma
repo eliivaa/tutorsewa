@@ -110,29 +110,32 @@ model Tutor {
 //////////////////////
 // TUTOR AVAILABILITY
 //////////////////////
-
 model TutorAvailability {
-  id           String           @id @default(cuid())
-  tutorId      String
+  id          String   @id @default(cuid())
+  tutorId     String
 
-  dayOfWeek    DayOfWeek
-  startTime    String           // HH:MM
-  endTime      String           // HH:MM
-  durationMin  Int
+  subject     String
+  level       String?
 
-  sessionType  AvailabilityType
-  maxStudents  Int?
+  date        DateTime
+  startTime   String
+  endTime     String
+  durationMin Int
 
-  isActive     Boolean          @default(true)
+  sessionType AvailabilityType
+  maxStudents Int?
+  isActive    Boolean @default(true)
 
-  tutor        Tutor            @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  bookings     Booking[]
+  tutor       Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
 
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-
-  @@unique([tutorId, dayOfWeek, startTime, endTime, sessionType])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
+
+
+
+
 
 //////////////////////
 // BOOKINGS
