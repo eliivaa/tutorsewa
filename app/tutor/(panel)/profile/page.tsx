@@ -165,9 +165,18 @@ export default function TutorProfilePage() {
       <Textarea label="Bio" value={form.bio}
         onChange={v => setForm({ ...form, bio: v })} />
 
-      <Input label="Hourly Rate (Rs)" type="number"
-        value={form.rate}
-        onChange={v => setForm({ ...form, rate: v })} />
+     <Input
+  label="Hourly Rate (Rs)"
+  type="text"   // 👈 use text, NOT number
+  value={form.rate}
+  onChange={(v) => {
+    // allow only digits
+    if (/^\d*$/.test(v)) {
+      setForm({ ...form, rate: v });
+    }
+  }}
+/>
+
 
       <Input label="Experience"
         value={form.experience}

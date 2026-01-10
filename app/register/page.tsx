@@ -176,7 +176,7 @@ export default function RegisterPage() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-3 cursor-pointer text-gray-500"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
               </span>
 
               {errors.password && (
@@ -201,7 +201,7 @@ export default function RegisterPage() {
                 onClick={() => setShowConfirm(!showConfirm)}
                 className="absolute right-3 top-3 cursor-pointer text-gray-500"
               >
-                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showConfirm ? <Eye size={18} /> : <EyeOff size={18} />}
               </span>
 
               {errors.confirmPassword && (

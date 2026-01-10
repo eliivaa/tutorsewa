@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET!,
@@ -16,13 +16,9 @@ export async function POST(req: Request) {
 
   await prisma.user.update({
     where: { email: token.email },
-    data: {
-      phone,
-      grade,
-    },
+    data: { phone, grade },
   });
 
-  // JWT will refresh on next request automatically
   return NextResponse.json({
     success: true,
     phone,

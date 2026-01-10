@@ -1,15 +1,23 @@
 // "use client";
 
-// import { useState } from "react";
+// import { useState, useEffect } from "react";
 // import { signIn } from "next-auth/react";
 // import toast, { Toaster } from "react-hot-toast";
 // import Image from "next/image";
-// import { useRouter } from "next/navigation";
+// import { useRouter, useSearchParams } from "next/navigation";
 
 // export default function LoginPage() {
 //   const [form, setForm] = useState({ email: "", password: "" });
 //   const [loading, setLoading] = useState(false);
 //   const router = useRouter();
+//   const searchParams = useSearchParams();
+
+//   // 🔥 Remove NextAuth default error message
+//   useEffect(() => {
+//     if (searchParams.get("error")) {
+//       router.replace("/login"); // remove ?error= from URL
+//     }
+//   }, [searchParams, router]);
 
 //   const handleLogin = async (e: React.FormEvent) => {
 //     e.preventDefault();
@@ -23,12 +31,10 @@
 
 //     setLoading(false);
 
-//     // if (res?.error) return toast.error("Invalid email or password");
-
 //     if (res?.error) {
-//   // Show backend error
-//   return toast.error(res.error);
-// }
+//       toast.error(res.error); // ✅ green toast only
+//       return;
+//     }
 
 //     toast.success("Login successful!");
 //     router.push("/dashboard");
@@ -47,42 +53,42 @@
 //           <input
 //             type="email"
 //             placeholder="Enter your email"
-//             className="w-full border rounded-md p-2 focus:ring-[#48A6A7]"
+//             className="w-full border rounded-md p-2"
 //             onChange={(e) => setForm({ ...form, email: e.target.value })}
 //           />
 
 //           <input
 //             type="password"
 //             placeholder="Enter your password"
-//             className="w-full border rounded-md p-2 focus:ring-[#48A6A7]"
+//             className="w-full border rounded-md p-2"
 //             onChange={(e) => setForm({ ...form, password: e.target.value })}
 //           />
 
-//           <button type="submit" disabled={loading}
-//             className="w-full bg-[#006A6A] text-white py-2 rounded-md hover:bg-[#005454] transition">
+//           <button
+//             type="submit"
+//             disabled={loading}
+//             className="w-full bg-[#006A6A] text-white py-2 rounded-md"
+//           >
 //             {loading ? "Logging in..." : "Login"}
 //           </button>
 //         </form>
 
-//         <div className="text-center mt-4 text-gray-600 text-sm">Or continue with</div>
+//         <div className="text-center mt-4 text-gray-600 text-sm">
+//           Or continue with
+//         </div>
 
 //         <button
 //           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-//           className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2 hover:bg-gray-50 transition"
+//           className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2"
 //         >
 //           <Image src="/google.svg" alt="Google" width={20} height={20} />
 //           Google
 //         </button>
-
-//         <p className="text-xs text-center text-gray-500 mt-4">
-//           By logging in, you agree to our{" "}
-//           <a href="#" className="underline">Terms of Service</a> and{" "}
-//           <a href="#" className="underline">Privacy Policy</a>.
-//         </p>
 //       </div>
 //     </div>
 //   );
 // }
+
 
 "use client";
 
@@ -95,22 +101,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ⛔ Hide NextAuth white popup & show toast instead
+  // 🔥 Remove NextAuth default error message
   useEffect(() => {
-    const error = searchParams.get("error");
-
-    if (error) {
-      toast.error("Please verify your email before logging in.");
-
-      // remove error from URL
-      const url = new URL(window.location.href);
-      url.searchParams.delete("error");
-      window.history.replaceState({}, "", url.toString());
+    if (searchParams.get("error")) {
+      router.replace("/login"); // remove ?error= from URL
     }
-  }, []);
+  }, [searchParams, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +125,8 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res?.error) {
-      return toast.error(res.error);
+      toast.error(res.error);
+      return;
     }
 
     toast.success("Login successful!");
@@ -135,13 +136,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F2EFE7]">
       <Toaster position="top-right" />
-
-      {/* Hide NextAuth white popup only on login page */}
-      <style jsx global>{`
-        div[role="alert"] {
-          display: none !important;
-        }
-      `}</style>
 
       <div className="bg-white shadow-md rounded-lg p-8 w-[350px] border border-[#48A6A7]/40">
         <h1 className="text-2xl font-bold text-[#006A6A] text-center mb-6">
@@ -163,6 +157,13 @@ export default function LoginPage() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
 
+          {/* 🔐 Forgot Password Link */}
+          <p className="text-sm text-right">
+            <a href="/forgot-password" className="text-[#006A6A] hover:underline">
+              Forgot password?
+            </a>
+          </p>
+
           <button
             type="submit"
             disabled={loading}
@@ -172,19 +173,17 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="text-center mt-4 text-gray-600 text-sm">Or continue with</div>
+        <div className="text-center mt-4 text-gray-600 text-sm">
+          Or continue with
+        </div>
 
         <button
           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-          className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2 hover:bg-gray-50 transition"
+          className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2"
         >
           <Image src="/google.svg" alt="Google" width={20} height={20} />
           Google
         </button>
-
-        <p className="text-xs text-center text-gray-500 mt-4">
-          By logging in, you agree to our Terms of Service and Privacy Policy.
-        </p>
       </div>
     </div>
   );
