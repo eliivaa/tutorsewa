@@ -52,6 +52,24 @@ enum DayOfWeek {
   SATURDAY
   SUNDAY
 }
+enum NotificationType {
+  BOOKING_REQUESTED
+  BOOKING_ACCEPTED
+  BOOKING_REJECTED
+
+  PAYMENT_REQUIRED
+  PAYMENT_CONFIRMED
+  PAYMENT_FAILED
+
+  SESSION_SCHEDULED
+  SESSION_LINK_SHARED
+  SESSION_REMINDER
+  SESSION_CANCELLED
+  SESSION_RESCHEDULED
+
+  MESSAGE_RECEIVED
+  SYSTEM_ANNOUNCEMENT
+}
 
 //////////////////////
 // USER
@@ -67,6 +85,10 @@ model User {
   image         String?
   emailVerified DateTime?
   verifyToken   String?
+  
+    // 🔐 FORGOT PASSWORD
+  resetToken    String?
+  resetExpires  DateTime?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -76,6 +98,8 @@ model User {
   thriftItems   ThriftItem[]
   reviews       Review[]
   bookings      Booking[]
+  notifications Notification[]
+
 }
 
 //////////////////////
@@ -171,6 +195,8 @@ model Booking {
   totalAmount     Int
 
   note            String?
+  notifications Notification[]
+
 
   status          BookingStatus @default(REQUESTED)
 
@@ -263,6 +289,43 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model Notification {
+  id          String   @id @default(cuid())
+
+  // 🔗 Who receives this notification
+  userId      String
+
+  // 🔔 Core content
+  title       String
+  message     String
+
+  // 🧠 Machine-readable type
+  type        NotificationType
+
+  // 🔗 Optional references (VERY IMPORTANT)
+  bookingId   String?  
+  sessionId   String?
+  tutorId     String?
+  studentId   String?
+
+  // 📍 Action handling
+  actionUrl   String?   // e.g. "/dashboard/payments/123"
+  actionLabel String?   // e.g. "Pay Now"
+
+  // 👁️ Read status
+  isRead      Boolean   @default(false)
+
+  // ⏱️ Timestamp
+  createdAt  DateTime  @default(now())
+
+  // 🔗 Relations
+  user       User      @relation(fields: [userId], references: [id])
+  booking    Booking?  @relation(fields: [bookingId], references: [id])
+
+  @@index([userId, isRead])
+}
+
 
 //////////////////////
 // ADMIN
