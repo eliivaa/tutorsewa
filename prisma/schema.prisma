@@ -52,6 +52,7 @@ enum DayOfWeek {
   SATURDAY
   SUNDAY
 }
+
 enum NotificationType {
   BOOKING_REQUESTED
   BOOKING_ACCEPTED
@@ -71,27 +72,47 @@ enum NotificationType {
   SYSTEM_ANNOUNCEMENT
 }
 
+enum PaymentStatus {
+  PENDING
+  HALF_PAID
+  FULL_PAID
+  FAILED
+}
+
+
+enum BookingPaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  FULLY_PAID
+}
+
+
+enum PaymentGateway {
+  ESEWA
+  KHALTI
+}
+
 //////////////////////
 // USER
 //////////////////////
 
 model User {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String   @unique
+  email         String    @unique
   password      String?
   phone         String?
   grade         String?
   image         String?
   emailVerified DateTime?
   verifyToken   String?
-  
-    // 🔐 FORGOT PASSWORD
-  resetToken    String?
-  resetExpires  DateTime?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  // 🔐 FORGOT PASSWORD
+  resetToken   String?
+  resetExpires DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   accounts      Account[]
   sessions      Session[]
@@ -99,7 +120,6 @@ model User {
   reviews       Review[]
   bookings      Booking[]
   notifications Notification[]
-
 }
 
 //////////////////////
@@ -107,24 +127,24 @@ model User {
 //////////////////////
 
 model Tutor {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  phone        String
-  password     String
+  id       String @id @default(cuid())
+  name     String
+  email    String @unique
+  phone    String
+  password String
 
-  photo        String?
-  bio          String?
-  subjects     String[]
-  experience   String?
-  cvUrl        String?
-  idUrl        String?
-  rate         Int?
+  photo      String?
+  bio        String?
+  subjects   String[]
+  experience String?
+  cvUrl      String?
+  idUrl      String?
+  rate       Int?
 
-  status       TutorStatus @default(PENDING)
+  status TutorStatus @default(PENDING)
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   reviews        Review[]
   bookings       Booking[]
@@ -135,11 +155,11 @@ model Tutor {
 // TUTOR AVAILABILITY
 //////////////////////
 model TutorAvailability {
-  id          String   @id @default(cuid())
-  tutorId     String
+  id      String @id @default(cuid())
+  tutorId String
 
-  subject     String
-  level       String?
+  subject String
+  level   String?
 
   date        DateTime
   startTime   String
@@ -148,62 +168,88 @@ model TutorAvailability {
 
   sessionType AvailabilityType
   maxStudents Int?
-  isActive    Boolean @default(true)
+  isActive    Boolean          @default(true)
 
-  tutor       Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  bookings    Booking[]
+  tutor    Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  bookings Booking[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
-
-
-
-
 
 //////////////////////
 // BOOKINGS
 //////////////////////
 
 model Booking {
-  id              String        @id @default(cuid())
+  id String @id @default(cuid())
 
-  studentId       String
-  tutorId         String
-  availabilityId  String
+  studentId      String
+  tutorId        String
+  availabilityId String
 
-  student         User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  tutor           Tutor         @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  availability    TutorAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+  student      User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutor        Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  availability TutorAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
 
-  sessionType     SessionType
-  subject         String
-  level           String?
+  sessionType SessionType
+  subject     String
+  level       String?
 
-  bookingDate     DateTime
-  startTime       DateTime
-  endTime         DateTime
-  durationMin     Int
+  bookingDate DateTime
+  startTime   DateTime
+  endTime     DateTime
+  durationMin Int
 
-  maxStudents     Int?
-  currentCount    Int           @default(1)
+  maxStudents  Int?
+  currentCount Int  @default(1)
 
-  packageType     PackageType   @default(SINGLE_SESSION)
-  packageMonths   Int?
+  packageType   PackageType @default(SINGLE_SESSION)
+  packageMonths Int?
 
-  hourlyRate      Int
-  totalAmount     Int
+  hourlyRate  Int
+  totalAmount Int
 
-  note            String?
+  note          String?
   notifications Notification[]
 
+  status BookingStatus @default(REQUESTED)
 
-  status          BookingStatus @default(REQUESTED)
+  payments Payment[]
+  paymentStatus   BookingPaymentStatus @default(UNPAID)
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tutorId, startTime, endTime])
+}
+
+//////////////////////
+// PAYMENT
+//////////////////////
+model Payment {
+  id String @id @default(cuid())
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  gateway         PaymentGateway
+  transactionUuid String         @unique // prevents reuse
+  amount          Int
+
+  payMode String // HALF or FULL
+  status  PaymentStatus @default(PENDING)
+
+  refId       String? // from eSewa verification
+  rawResponse Json? // full gateway response (audit-safe)
+
+  adminCommission Int?
+  tutorEarning    Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bookingId])
 }
 
 //////////////////////
@@ -211,15 +257,15 @@ model Booking {
 //////////////////////
 
 model Review {
-  id        String   @id @default(cuid())
-  rating    Int
-  comment   String
+  id      String @id @default(cuid())
+  rating  Int
+  comment String
 
-  tutorId   String
-  userId    String
+  tutorId String
+  userId  String
 
-  tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tutor Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -232,7 +278,7 @@ model Review {
 //////////////////////
 
 model ThriftItem {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   title     String
   subject   String?
   condition String?
@@ -241,8 +287,8 @@ model ThriftItem {
   image     String?
   grade     String?
 
-  sellerId  String
-  seller    User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  sellerId String
+  seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }
@@ -279,7 +325,7 @@ model Session {
   userId       String
   expires      DateTime
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -291,49 +337,48 @@ model VerificationToken {
 }
 
 model Notification {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  // 🔗 Who receives this notification
-  userId      String
+  // Who receives this notification
+  userId String
 
-  // 🔔 Core content
-  title       String
-  message     String
+  // Core content
+  title   String
+  message String
 
-  // 🧠 Machine-readable type
-  type        NotificationType
+  // Machine-readable type
+  type NotificationType
 
   // 🔗 Optional references (VERY IMPORTANT)
-  bookingId   String?  
-  sessionId   String?
-  tutorId     String?
-  studentId   String?
+  bookingId String?
+  sessionId String?
+  tutorId   String?
+  studentId String?
 
-  // 📍 Action handling
-  actionUrl   String?   // e.g. "/dashboard/payments/123"
-  actionLabel String?   // e.g. "Pay Now"
+  //Action handling
+  actionUrl   String? // e.g. "/dashboard/payments/123"
+  actionLabel String? // e.g. "Pay Now"
 
-  // 👁️ Read status
-  isRead      Boolean   @default(false)
+  // Read status
+  isRead Boolean @default(false)
 
-  // ⏱️ Timestamp
-  createdAt  DateTime  @default(now())
+  // Timestamp
+  createdAt DateTime @default(now())
 
-  // 🔗 Relations
-  user       User      @relation(fields: [userId], references: [id])
-  booking    Booking?  @relation(fields: [bookingId], references: [id])
+  // Relations
+  user    User     @relation(fields: [userId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
 
   @@index([userId, isRead])
 }
-
 
 //////////////////////
 // ADMIN
 //////////////////////
 
 model Admin {
-  id       String   @id @default(cuid())
-  email    String   @unique
+  id       String @id @default(cuid())
+  email    String @unique
   password String
-  role     String   @default("ADMIN")
+  role     String @default("ADMIN")
 }
