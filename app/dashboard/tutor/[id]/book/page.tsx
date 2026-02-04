@@ -62,10 +62,8 @@ export default function BookSessionPage() {
     setSelectedDate(null);
     setSelectedSlot(null);
 
-    const res = await fetch(
-      `/api/tutor/availability/${tutorId}?sessionType=${sessionType}`,
-      { cache: "no-store" }
-    );
+    const res = await fetch(`/api/public/tutor-availability/${tutorId}?sessionType=${sessionType}`)
+
 
     const data = await res.json();
     if (!res.ok) {
