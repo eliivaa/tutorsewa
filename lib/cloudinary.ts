@@ -1,3 +1,5 @@
+
+
 // import { v2 as cloudinary } from "cloudinary";
 
 // cloudinary.config({
@@ -9,19 +11,28 @@
 // export async function uploadToCloudinary(file: File) {
 //   const buffer = Buffer.from(await file.arrayBuffer());
 
-//   return new Promise((resolve, reject) => {
+//   const isPDF = file.type === "application/pdf";
+
+//   return new Promise<string>((resolve, reject) => {
 //     const uploadStream = cloudinary.uploader.upload_stream(
-//       { resource_type: "auto" },
+//       {
+//         resource_type: isPDF ? "raw" : "image", // ✅ FIX
+//         folder: "tutorsewa",
+//         use_filename: true,
+//         unique_filename: true,
+//       },
 //       (error, result) => {
-//         if (error) reject(error);
-//         else resolve(result?.secure_url);
+//         if (error) {
+//           reject(error);
+//         } else {
+//           resolve(result!.secure_url);
+//         }
 //       }
 //     );
 
 //     uploadStream.end(buffer);
 //   });
 // }
-
 
 // export default cloudinary;
 
@@ -37,7 +48,10 @@ cloudinary.config({
 export async function uploadToCloudinary(file: File) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  const isPDF = file.type === "application/pdf";
+  // ✅ detect PDF
+  const isPDF =
+    file.type === "application/pdf" ||
+    file.name.toLowerCase().endsWith(".pdf");
 
   return new Promise<string>((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -48,11 +62,8 @@ export async function uploadToCloudinary(file: File) {
         unique_filename: true,
       },
       (error, result) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(result!.secure_url);
-        }
+        if (error) reject(error);
+        else resolve(result!.secure_url);
       }
     );
 
