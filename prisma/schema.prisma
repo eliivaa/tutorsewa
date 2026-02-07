@@ -11,6 +11,18 @@ datasource db {
 // ENUMS
 //////////////////////
 
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+}
+
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+
 enum TutorStatus {
   PENDING
   APPROVED
@@ -19,14 +31,22 @@ enum TutorStatus {
 }
 
 enum BookingStatus {
-  REQUESTED
-  ACCEPTED
-  REJECTED
-  PAYMENT_PENDING
-  CONFIRMED
+  REQUESTED              // student booked
+  REJECTED               // tutor rejected
+  PAYMENT_PENDING        // tutor accepted, waiting for payment
+  PARTIALLY_PAID         // 50% paid
+  FULLY_PAID             // 100% paid
+  CONFIRMED              // session unlocked
   COMPLETED
   CANCELLED
+  READY
+  EXPIRED 
 }
+enum PayMode {
+  HALF
+  FULL
+}
+
 
 enum SessionType {
   ONE_TO_ONE
@@ -67,6 +87,7 @@ enum NotificationType {
   SESSION_REMINDER
   SESSION_CANCELLED
   SESSION_RESCHEDULED
+  SESSION_COMPLETED
 
   MESSAGE_RECEIVED
   SYSTEM_ANNOUNCEMENT
@@ -106,8 +127,10 @@ model User {
   image         String?
   emailVerified DateTime?
   verifyToken   String?
+  authProvider AuthProvider @default(CREDENTIALS)
+  status        UserStatus @default(ACTIVE)
 
-  // 🔐 FORGOT PASSWORD
+  //  FORGOT PASSWORD
   resetToken   String?
   resetExpires DateTime?
 
@@ -217,6 +240,12 @@ model Booking {
 
   payments Payment[]
   paymentStatus   BookingPaymentStatus @default(UNPAID)
+  
+meetingRoom String?
+ sessionStarted Boolean  @default(false) 
+startedAt   DateTime?
+endedAt     DateTime?
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -234,23 +263,29 @@ model Payment {
   booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   gateway         PaymentGateway
-  transactionUuid String         @unique // prevents reuse
+  transactionUuid String @unique
   amount          Int
+  payMode PayMode
 
-  payMode String // HALF or FULL
-  status  PaymentStatus @default(PENDING)
 
-  refId       String? // from eSewa verification
-  rawResponse Json? // full gateway response (audit-safe)
+  paidAmount      Int
+
+  status PaymentStatus @default(PENDING)
+
+  refId       String?
+  rawResponse Json?
 
   adminCommission Int?
   tutorEarning    Int?
+  tutorPaid       Boolean @default(false) 
+  tutorPaidAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([bookingId])
 }
+
 
 //////////////////////
 // REVIEWS
@@ -339,25 +374,23 @@ model VerificationToken {
 model Notification {
   id String @id @default(cuid())
 
-  // Who receives this notification
-  userId String
+  // Owner (ONE of these)
+  userId  String?   // Student
+  tutorId String?   // Tutor
 
   // Core content
   title   String
   message String
+  type    NotificationType
 
-  // Machine-readable type
-  type NotificationType
-
-  // 🔗 Optional references (VERY IMPORTANT)
+  // Optional references
   bookingId String?
   sessionId String?
-  tutorId   String?
   studentId String?
 
-  //Action handling
-  actionUrl   String? // e.g. "/dashboard/payments/123"
-  actionLabel String? // e.g. "Pay Now"
+  // Action handling
+  actionUrl   String?
+  actionLabel String?
 
   // Read status
   isRead Boolean @default(false)
@@ -366,10 +399,11 @@ model Notification {
   createdAt DateTime @default(now())
 
   // Relations
-  user    User     @relation(fields: [userId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
   booking Booking? @relation(fields: [bookingId], references: [id])
 
-  @@index([userId, isRead])
+  @@index([userId])
+  @@index([tutorId])
 }
 
 //////////////////////
