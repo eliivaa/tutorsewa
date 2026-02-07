@@ -30,15 +30,16 @@ export async function GET(req: Request) {
         skip: (page - 1) * pageSize,
         take: pageSize,
         select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          grade: true,
-          image: true,
-          createdAt: true,
-          isSuspended: true,
-        },
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  grade: true,
+  image: true,
+  createdAt: true,
+  status: true,
+}
+
       }),
       prisma.user.count({ where }),
     ]);

@@ -6,12 +6,20 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { isSuspended } = await req.json();
+    const body = await req.json();
+    console.log("PATCH student status body:", body);
+    console.log("Student ID:", params.id);
 
-    await prisma.user.update({
+    const { isSuspended } = body;
+
+    const result = await prisma.user.update({
       where: { id: params.id },
-      data: { isSuspended },
+      data: {
+        status: isSuspended ? "SUSPENDED" : "ACTIVE",
+      },
     });
+
+    console.log("Updated user:", result.id, result.status);
 
     return NextResponse.json({ success: true });
   } catch (err) {
