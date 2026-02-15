@@ -1,37 +1,37 @@
 // import { NextRequest, NextResponse } from "next/server";
 // import { prisma } from "@/lib/prisma";
 // import { getStudentId } from "@/lib/auth/getStudentId";
-// import { canMessage } from "@/lib/messaging";
 
-// export async function GET(req: NextRequest, { params }: { params: { bookingId: string } }) {
+// export async function GET(
+//   req: NextRequest,
+//   { params }: { params: { conversationId: string } }
+// ) {
 //   const studentId = await getStudentId();
-//   if (!studentId) return NextResponse.json({ messages: [] });
+//   if (!studentId) {
+//     return NextResponse.json({ messages: [] });
+//   }
 
-//   const convo = await prisma.conversation.findUnique({
-//     where: { bookingId: params.bookingId },
-//     select: {
-//       id: true,
-//       booking: { select: { studentId: true, status: true } },
-//     },
+//   const conversation = await prisma.conversation.findUnique({
+//     where: { id: params.conversationId },
 //   });
 
-//   if (!convo || convo.booking.studentId !== studentId) {
+//   if (!conversation || conversation.studentId !== studentId) {
 //     return NextResponse.json({ messages: [] }, { status: 403 });
 //   }
 
-//   if (!canMessage(convo.booking.status)) {
-//     return NextResponse.json({ error: "MESSAGING_NOT_ALLOWED" }, { status: 403 });
-//   }
-
 //   const messages = await prisma.message.findMany({
-//     where: { conversationId: convo.id },
+//     where: { conversationId: conversation.id },
 //     orderBy: { createdAt: "asc" },
 //   });
 
-//   return NextResponse.json({ messages, conversationId: convo.id });
+//   return NextResponse.json({
+//     messages,
+//     conversationId: conversation.id,
+//   });
 // }
 
 
+// after thrift
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -41,8 +41,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { conversationId: string } }
 ) {
-  const studentId = await getStudentId();
-  if (!studentId) {
+  const userId = await getStudentId();
+  if (!userId) {
     return NextResponse.json({ messages: [] });
   }
 
@@ -50,7 +50,13 @@ export async function GET(
     where: { id: params.conversationId },
   });
 
-  if (!conversation || conversation.studentId !== studentId) {
+  // ⭐ allow BOTH student and seller to read
+  const isParticipant =
+    conversation &&
+    (conversation.studentId === userId ||
+      conversation.thriftUserId === userId);
+
+  if (!isParticipant) {
     return NextResponse.json({ messages: [] }, { status: 403 });
   }
 

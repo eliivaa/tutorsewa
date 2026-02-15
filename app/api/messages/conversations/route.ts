@@ -1,60 +1,36 @@
+
 // import { NextResponse } from "next/server";
 // import { prisma } from "@/lib/prisma";
 // import { getStudentId } from "@/lib/auth/getStudentId";
 
 // export async function GET() {
 //   const studentId = await getStudentId();
-//   if (!studentId) return NextResponse.json({ conversations: [] });
+//   if (!studentId) {
+//     return NextResponse.json({ conversations: [] });
+//   }
 
 //   const convos = await prisma.conversation.findMany({
 //     where: {
-//       booking: {
-//         studentId,
-//       },
+//       studentId,
 //     },
 //     orderBy: { createdAt: "desc" },
-//     select: {
-//       id: true,
-//       bookingId: true,
-//       booking: {
+//     include: {
+//       tutor: {
 //         select: {
-//           tutorId: true,
-//           status: true,
-//           startTime: true,
-//           tutor: { select: { name: true, photo: true } },
+//           id: true,
+//           name: true,
+//           photo: true,
 //         },
 //       },
 //       messages: {
 //         take: 1,
 //         orderBy: { createdAt: "desc" },
-//         select: { content: true, createdAt: true },
 //       },
 //     },
 //   });
 
 //   const conversations = await Promise.all(
 //     convos.map(async (c) => {
-
-//       // ✅ CHECK ANY accepted booking with this tutor
-//       const pastAcceptedBooking = await prisma.booking.findFirst({
-//   where: {
-//     studentId,
-//     tutorId: c.booking.tutorId,
-//     status: {
-//       in: [
-//         "PAYMENT_PENDING",
-//         "PARTIALLY_PAID",
-//         "FULLY_PAID",
-//         "CONFIRMED",
-//         "READY",
-//         "COMPLETED",
-//         "EXPIRED",
-//       ],
-//     },
-//   },
-// });
-
-
 //       const unread = await prisma.message.count({
 //         where: {
 //           conversationId: c.id,
@@ -64,10 +40,11 @@
 //       });
 
 //       return {
-//         ...c,
+//         id: c.id,
+//         tutor: c.tutor,
+//         lastMessage: c.messages[0] || null,
 //         unread,
-//         allowed: true
-//   // 🔥 THIS IS IMPORTANT
+//         allowed: true,
 //       };
 //     })
 //   );
@@ -76,29 +53,31 @@
 // }
 
 
+// after thrift
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStudentId } from "@/lib/auth/getStudentId";
 
 export async function GET() {
-  const studentId = await getStudentId();
-  if (!studentId) {
+  const userId = await getStudentId();
+  if (!userId) {
     return NextResponse.json({ conversations: [] });
   }
 
+  // ⭐ load conversations where user is student OR seller
   const convos = await prisma.conversation.findMany({
     where: {
-      studentId,
+      OR: [
+        { studentId: userId },
+        { thriftUserId: userId }, // IMPORTANT FIX
+      ],
     },
     orderBy: { createdAt: "desc" },
     include: {
-      tutor: {
-        select: {
-          id: true,
-          name: true,
-          photo: true,
-        },
-      },
+      tutor: { select: { id: true, name: true, photo: true } },
+      student: { select: { id: true, name: true, image: true } },
+      thriftUser: { select: { id: true, name: true, image: true } },
       messages: {
         take: 1,
         orderBy: { createdAt: "desc" },
@@ -112,16 +91,41 @@ export async function GET() {
         where: {
           conversationId: c.id,
           isRead: false,
-          NOT: { senderUserId: studentId },
+          NOT: { senderUserId: userId },
         },
       });
 
+      let person;
+
+      // ⭐ decide other person dynamically
+      if (c.type === "THRIFT") {
+        person =
+          c.studentId === userId
+            ? {
+                id: c.thriftUser?.id,
+                name: c.thriftUser?.name || "Seller",
+                photo: c.thriftUser?.image || null,
+              }
+            : {
+                id: c.student?.id,
+                name: c.student?.name || "User",
+                photo: c.student?.image || null,
+              };
+      } else {
+        person = {
+          id: c.tutor?.id,
+          name: c.tutor?.name || "Tutor",
+          photo: c.tutor?.photo || null,
+        };
+      }
+
       return {
         id: c.id,
-        tutor: c.tutor,
+        tutor: person,
         lastMessage: c.messages[0] || null,
         unread,
         allowed: true,
+        type: c.type,
       };
     })
   );

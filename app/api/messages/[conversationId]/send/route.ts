@@ -4,38 +4,31 @@
 
 // export async function POST(
 //   req: NextRequest,
-//   { params }: { params: { bookingId: string } }
+//   { params }: { params: { conversationId: string } }
 // ) {
 //   const studentId = await getStudentId();
-//   if (!studentId)
+//   if (!studentId) {
 //     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+//   }
 
 //   const { content } = await req.json();
-//   if (!content?.trim())
+//   if (!content?.trim()) {
 //     return NextResponse.json({ error: "EMPTY" }, { status: 400 });
+//   }
 
-//   const convo = await prisma.conversation.findUnique({
-//     where: { bookingId: params.bookingId },
-//     select: {
-//       id: true,
-//       booking: {
-//         select: {
-//           studentId: true,
-//           tutorId: true,
-//         },
-//       },
-//     },
+//   const conversation = await prisma.conversation.findUnique({
+//     where: { id: params.conversationId },
 //   });
 
-//   if (!convo || convo.booking.studentId !== studentId) {
+//   if (!conversation || conversation.studentId !== studentId) {
 //     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 //   }
 
-//   // ✅ NEW LOGIC: Check if student ever had accepted session with this tutor
+//   // 🔥 Optional: Restrict messaging only if student has accepted booking
 //   const pastAcceptedBooking = await prisma.booking.findFirst({
 //     where: {
 //       studentId,
-//       tutorId: convo.booking.tutorId,
+//       tutorId: conversation.tutorId,
 //       status: {
 //         in: [
 //           "CONFIRMED",
@@ -57,28 +50,26 @@
 
 //   const msg = await prisma.message.create({
 //     data: {
-//       conversationId: convo.id,
+//       conversationId: conversation.id,
 //       senderUserId: studentId,
 //       content,
 //       isRead: false,
 //     },
 //   });
 
-//   // Optional notification for tutor
+//   // 🔔 Notify tutor
 //   await prisma.notification.create({
 //     data: {
-//       tutorId: convo.booking.tutorId,
+//       tutorId: conversation.tutorId,
 //       title: "New Message",
 //       message: "You received a new message.",
 //       type: "MESSAGE_RECEIVED",
-//       bookingId: params.bookingId,
 //       actionUrl: "/tutor/messages",
 //     },
 //   });
 
 //   return NextResponse.json({ message: msg });
 // }
-
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -88,67 +79,95 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { conversationId: string } }
 ) {
-  const studentId = await getStudentId();
-  if (!studentId) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  try {
+    const studentId = await getStudentId();
 
-  const { content } = await req.json();
-  if (!content?.trim()) {
-    return NextResponse.json({ error: "EMPTY" }, { status: 400 });
-  }
+    if (!studentId) {
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
 
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: params.conversationId },
-  });
+    const { content } = await req.json();
 
-  if (!conversation || conversation.studentId !== studentId) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
+    if (!content?.trim()) {
+      return NextResponse.json({ error: "EMPTY_MESSAGE" }, { status: 400 });
+    }
 
-  // 🔥 Optional: Restrict messaging only if student has accepted booking
-  const pastAcceptedBooking = await prisma.booking.findFirst({
-    where: {
-      studentId,
-      tutorId: conversation.tutorId,
-      status: {
-        in: [
-          "CONFIRMED",
-          "READY",
-          "COMPLETED",
-          "PARTIALLY_PAID",
-          "FULLY_PAID",
-        ],
+    // 🔎 Find conversation
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: params.conversationId },
+    });
+
+    if (!conversation || conversation.studentId !== studentId) {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    }
+
+    // ============================================================
+    // 🧠 TUTOR CHAT → restrict messaging until booking accepted
+    // ============================================================
+    if (conversation.type === "TUTOR_SESSION") {
+
+      if (!conversation.tutorId) {
+        return NextResponse.json(
+          { error: "INVALID_TUTOR_CONVERSATION" },
+          { status: 400 }
+        );
+      }
+
+      const pastAcceptedBooking = await prisma.booking.findFirst({
+        where: {
+          studentId,
+          tutorId: conversation.tutorId,
+          status: {
+            in: [
+              "CONFIRMED",
+              "READY",
+              "COMPLETED",
+              "PARTIALLY_PAID",
+              "FULLY_PAID",
+            ],
+          },
+        },
+      });
+
+      if (!pastAcceptedBooking) {
+        return NextResponse.json(
+          { error: "MESSAGING_NOT_ALLOWED" },
+          { status: 403 }
+        );
+      }
+    }
+
+    // ============================================================
+    // 💬 Create Message (works for BOTH tutor & thrift)
+    // ============================================================
+    const msg = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderUserId: studentId,
+        content,
+        isRead: false,
       },
-    },
-  });
+    });
 
-  if (!pastAcceptedBooking) {
-    return NextResponse.json(
-      { error: "MESSAGING_NOT_ALLOWED" },
-      { status: 403 }
-    );
+    // ============================================================
+    // 🔔 Notify Tutor ONLY for tutor chats
+    // ============================================================
+    if (conversation.type === "TUTOR_SESSION" && conversation.tutorId) {
+      await prisma.notification.create({
+        data: {
+          tutorId: conversation.tutorId,
+          title: "New Message",
+          message: "You received a new message.",
+          type: "MESSAGE_RECEIVED",
+          actionUrl: "/tutor/messages",
+        },
+      });
+    }
+
+    return NextResponse.json({ message: msg });
+
+  } catch (err) {
+    console.error("SEND MESSAGE ERROR:", err);
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
   }
-
-  const msg = await prisma.message.create({
-    data: {
-      conversationId: conversation.id,
-      senderUserId: studentId,
-      content,
-      isRead: false,
-    },
-  });
-
-  // 🔔 Notify tutor
-  await prisma.notification.create({
-    data: {
-      tutorId: conversation.tutorId,
-      title: "New Message",
-      message: "You received a new message.",
-      type: "MESSAGE_RECEIVED",
-      actionUrl: "/tutor/messages",
-    },
-  });
-
-  return NextResponse.json({ message: msg });
 }

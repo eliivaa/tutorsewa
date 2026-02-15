@@ -873,21 +873,309 @@
 
 
 
+// "use client";
+
+// import { useEffect, useRef, useState } from "react";
+// import { io, Socket } from "socket.io-client";
+// import { useSession } from "next-auth/react";
+
+// // type Conversation = {
+// //   id: string;
+// //   unread: number;
+// //   allowed: boolean;
+// //   tutor: {
+// //     id: string;
+// //     name: string;
+// //     photo?: string | null;
+// //   };
+// // };
+
+
+// // added thrift
+
+// type Conversation = {
+//   id: string;
+//   unread: number;
+//   allowed: boolean;
+//   type: "TUTOR_SESSION" | "THRIFT";
+//   tutor: {
+//     id: string;
+//     name: string;
+//     photo?: string | null;
+//   };
+// };
+
+// type Msg = {
+//   id?: string;
+//   content: string;
+//   senderUserId?: string | null;
+//   senderTutorId?: string | null;
+//   createdAt: string;
+//   conversationId: string;
+//   clientTempId?: string;
+// };
+
+// export default function StudentMessagesPage() {
+//   const { data: session, status } = useSession();
+
+//   const userId = session?.user?.id || null;
+
+//   const [convos, setConvos] = useState<Conversation[]>([]);
+//   const [active, setActive] = useState<Conversation | null>(null);
+//   const [messages, setMessages] = useState<Msg[]>([]);
+//   const [text, setText] = useState("");
+//   const [socket, setSocket] = useState<Socket | null>(null);
+
+//   const bottomRef = useRef<HTMLDivElement | null>(null);
+//   const activeIdRef = useRef<string | null>(null);
+//   const joinedRoomRef = useRef<string | null>(null);
+
+//   /* ================= SOCKET INIT (ONLY ONCE) ================= */
+//   useEffect(() => {
+//     let s: Socket | null = null;
+
+//     (async () => {
+//       await fetch("/api/socket/io");
+
+//       s = io({
+//         path: "/api/socket/io",
+//         transports: ["websocket"],
+//       });
+
+//       s.on("receive-message", (data: Msg) => {
+//         if (data?.conversationId && data.conversationId === activeIdRef.current) {
+//           setMessages((prev) => {
+//             if (data.clientTempId && prev.some((p) => p.clientTempId === data.clientTempId)) {
+//               return prev;
+//             }
+//             return [...prev, data];
+//           });
+//         }
+//       });
+
+//       setSocket(s);
+//     })();
+
+//     return () => {
+//       if (s) s.disconnect();
+//     };
+//   }, []);
+
+//   /* ================= LOAD CONVERSATIONS ================= */
+//   useEffect(() => {
+//     (async () => {
+//       const res = await fetch("/api/messages/conversations");
+//       const data = await res.json();
+
+//       setConvos(data.conversations || []);
+
+//       if (!active && data.conversations?.length) {
+//         setActive(data.conversations[0]);
+//       }
+//     })();
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, []);
+
+//   /* ================= JOIN + LOAD MESSAGES WHEN ACTIVE CHANGES ================= */
+//   useEffect(() => {
+//     if (!active || !socket) return;
+
+//     const conversationId = active.id;
+//     activeIdRef.current = conversationId;
+
+//     if (joinedRoomRef.current && joinedRoomRef.current !== conversationId) {
+//       socket.emit("leave-room", joinedRoomRef.current);
+//     }
+
+//     socket.emit("join-room", conversationId);
+//     joinedRoomRef.current = conversationId;
+
+//     (async () => {
+//       const res = await fetch(`/api/messages/${conversationId}`);
+//       const data = await res.json();
+//       setMessages(data.messages || []);
+
+//       await fetch(`/api/messages/${conversationId}/read`, { method: "POST" });
+//     })();
+//   }, [active, socket]);
+
+//   /* ================= SEND ================= */
+//   async function send() {
+//     if (!active?.allowed) return;
+//     if (!text.trim()) return;
+//     if (!socket) return;
+//     if (!active) return;
+//     if (!userId) return;
+
+//     const clientTempId = crypto.randomUUID();
+
+//     const temp: Msg = {
+//       conversationId: active.id,
+//       content: text,
+//       senderUserId: userId,
+//       createdAt: new Date().toISOString(),
+//       clientTempId,
+//     };
+
+//     setMessages((prev) => [...prev, temp]);
+//     setText("");
+
+//     await fetch(`/api/messages/${active.id}/send`, {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ content: temp.content }),
+//     });
+
+//     socket.emit("send-message", temp);
+//   }
+
+//   useEffect(() => {
+//     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+//   }, [messages]);
+
+//    if (status === "loading") {
+//   return null;
+// }
+
+// if (!userId) {
+//   return null;
+// }
+//   return (
+//     <div className="h-[80vh] bg-white border rounded-2xl flex">
+//       {/* LEFT */}
+//       <div className="w-[340px] border-r bg-[#F7FAFA] p-4 space-y-2 overflow-auto">
+//         {convos.map((c) => (
+//           <button
+//             key={c.id}
+//             onClick={() => setActive(c)}
+//             className={`w-full text-left p-3 rounded-xl border ${
+//               active?.id === c.id ? "bg-white border-[#4CB6B6]" : "bg-white/60"
+//             }`}
+//           >
+//             <div className="flex items-center gap-3">
+//               <img
+//                 src={c.tutor.photo || "/default-avatar.png"}
+//                 className="w-10 h-10 rounded-full object-cover"
+//                 alt="tutor"
+//               />
+//               <div className="flex-1 flex justify-between">
+//                 <p className="font-medium">{c.tutor.name}</p>
+//                 {c.unread > 0 && (
+//                   <span className="text-xs bg-red-500 text-white px-2 rounded-full">
+//                     {c.unread}
+//                   </span>
+//                 )}
+//               </div>
+//             </div>
+//           </button>
+//         ))}
+//       </div>
+
+//       {/* RIGHT */}
+//       <div className="flex-1 flex flex-col">
+//         {/* HEADER WITH PHOTO */}
+//         <div className="p-4 border-b flex items-center gap-3 bg-white">
+//           {active ? (
+//             <>
+//               <img
+//                 src={active.tutor.photo || "/default-avatar.png"}
+//                 className="w-10 h-10 rounded-full object-cover"
+//                 alt="tutor"
+//               />
+//               <div>
+//   <p className="font-semibold text-[#004B4B]">{active.tutor.name}</p>
+
+//   <p className="text-xs text-gray-500">
+//     {active?.type === "THRIFT"
+//       ? "🛒 Thrift Inquiry"
+//       : "TutorChat"}
+//   </p>
+// </div>
+
+//             </>
+//           ) : (
+//             <p className="font-semibold text-gray-500">Select chat</p>
+//           )}
+//         </div>
+
+//         <div className="flex-1 p-4 overflow-auto space-y-2">
+//           {messages.map((m, i) => {
+//             const mine = m.senderUserId === userId;
+
+//             return (
+//               <div
+//                 key={m.id ?? m.clientTempId ?? i}
+//                 className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
+//               >
+//                 {!mine && (
+//                   <img
+//                     src={active?.tutor.photo || "/default-avatar.png"}
+//                     className="w-8 h-8 rounded-full object-cover"
+//                     alt="tutor"
+//                   />
+//                 )}
+
+//                 <div
+//                   className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm ${
+//                     mine ? "bg-[#4CB6B6] text-white" : "bg-white border"
+//                   }`}
+//                 >
+//                   {m.content}
+//                 </div>
+//               </div>
+//             );
+//           })}
+
+//           <div ref={bottomRef} />
+//         </div>
+
+//         <div className="p-3 border-t flex gap-2">
+//           <input
+//             value={text}
+//             onChange={(e) => setText(e.target.value)}
+//             disabled={!active?.allowed}
+//             className="flex-1 border rounded-xl px-3 py-2"
+//             placeholder={!active?.allowed ? "Messaging not allowed" : "Type a message..."}
+//           />
+//           <button
+//             onClick={send}
+//             disabled={!active?.allowed}
+//             className="px-4 py-2 bg-[#004B4B] text-white rounded-xl disabled:opacity-50"
+//           >
+//             Send
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useSession } from "next-auth/react";
 
+/* ================= UPDATED TYPE ================= */
 type Conversation = {
   id: string;
   unread: number;
   allowed: boolean;
-  tutor: {
+  type: "TUTOR_SESSION" | "THRIFT";
+
+  tutor?: {
     id: string;
     name: string;
     photo?: string | null;
-  };
+  } | null;
+
+  thriftUser?: {
+    id: string;
+    name: string;
+    image?: string | null;
+  } | null;
 };
 
 type Msg = {
@@ -899,6 +1187,25 @@ type Msg = {
   conversationId: string;
   clientTempId?: string;
 };
+
+/* ================= HELPER ================= */
+function getPerson(c: Conversation | null) {
+  if (!c) return { name: "", photo: "/default-avatar.png", label: "" };
+
+  if (c.type === "THRIFT") {
+    return {
+      name: c.thriftUser?.name || "User",
+      photo: c.thriftUser?.image || "/default-avatar.png",
+      label: "🛒 Thrift Inquiry",
+    };
+  }
+
+  return {
+    name: c.tutor?.name || "Tutor",
+    photo: c.tutor?.photo || "/default-avatar.png",
+    label: "Tutor Chat",
+  };
+}
 
 export default function StudentMessagesPage() {
   const { data: session, status } = useSession();
@@ -915,7 +1222,7 @@ export default function StudentMessagesPage() {
   const activeIdRef = useRef<string | null>(null);
   const joinedRoomRef = useRef<string | null>(null);
 
-  /* ================= SOCKET INIT (ONLY ONCE) ================= */
+  /* ================= SOCKET INIT ================= */
   useEffect(() => {
     let s: Socket | null = null;
 
@@ -958,10 +1265,9 @@ export default function StudentMessagesPage() {
         setActive(data.conversations[0]);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ================= JOIN + LOAD MESSAGES WHEN ACTIVE CHANGES ================= */
+  /* ================= JOIN ROOM ================= */
   useEffect(() => {
     if (!active || !socket) return;
 
@@ -1018,60 +1324,62 @@ export default function StudentMessagesPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-   if (status === "loading") {
-  return null;
-}
+  if (status === "loading" || !userId) return null;
 
-if (!userId) {
-  return null;
-}
   return (
     <div className="h-[80vh] bg-white border rounded-2xl flex">
       {/* LEFT */}
       <div className="w-[340px] border-r bg-[#F7FAFA] p-4 space-y-2 overflow-auto">
-        {convos.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setActive(c)}
-            className={`w-full text-left p-3 rounded-xl border ${
-              active?.id === c.id ? "bg-white border-[#4CB6B6]" : "bg-white/60"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <img
-                src={c.tutor.photo || "/default-avatar.png"}
-                className="w-10 h-10 rounded-full object-cover"
-                alt="tutor"
-              />
-              <div className="flex-1 flex justify-between">
-                <p className="font-medium">{c.tutor.name}</p>
-                {c.unread > 0 && (
-                  <span className="text-xs bg-red-500 text-white px-2 rounded-full">
-                    {c.unread}
-                  </span>
-                )}
+        {convos.map((c) => {
+          const person = getPerson(c);
+
+          return (
+            <button
+              key={c.id}
+              onClick={() => setActive(c)}
+              className={`w-full text-left p-3 rounded-xl border ${
+                active?.id === c.id ? "bg-white border-[#4CB6B6]" : "bg-white/60"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <img
+                  src={person.photo}
+                  className="w-10 h-10 rounded-full object-cover"
+                  alt="user"
+                />
+                <div className="flex-1 flex justify-between">
+                  <div>
+                    <p className="font-medium">{person.name}</p>
+                    <p className="text-xs text-gray-500">{person.label}</p>
+                  </div>
+                  {c.unread > 0 && (
+                    <span className="text-xs bg-red-500 text-white px-2 rounded-full">
+                      {c.unread}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
       {/* RIGHT */}
       <div className="flex-1 flex flex-col">
-        {/* HEADER WITH PHOTO */}
         <div className="p-4 border-b flex items-center gap-3 bg-white">
           {active ? (
-            <>
-              <img
-                src={active.tutor.photo || "/default-avatar.png"}
-                className="w-10 h-10 rounded-full object-cover"
-                alt="tutor"
-              />
-              <div>
-                <p className="font-semibold text-[#004B4B]">{active.tutor.name}</p>
-                <p className="text-xs text-gray-500">Chat conversation</p>
-              </div>
-            </>
+            (() => {
+              const person = getPerson(active);
+              return (
+                <>
+                  <img src={person.photo} className="w-10 h-10 rounded-full object-cover" />
+                  <div>
+                    <p className="font-semibold text-[#004B4B]">{person.name}</p>
+                    <p className="text-xs text-gray-500">{person.label}</p>
+                  </div>
+                </>
+              );
+            })()
           ) : (
             <p className="font-semibold text-gray-500">Select chat</p>
           )}
@@ -1080,6 +1388,7 @@ if (!userId) {
         <div className="flex-1 p-4 overflow-auto space-y-2">
           {messages.map((m, i) => {
             const mine = m.senderUserId === userId;
+            const person = getPerson(active);
 
             return (
               <div
@@ -1087,11 +1396,7 @@ if (!userId) {
                 className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
               >
                 {!mine && (
-                  <img
-                    src={active?.tutor.photo || "/default-avatar.png"}
-                    className="w-8 h-8 rounded-full object-cover"
-                    alt="tutor"
-                  />
+                  <img src={person.photo} className="w-8 h-8 rounded-full object-cover" />
                 )}
 
                 <div
