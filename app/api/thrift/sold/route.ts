@@ -3,23 +3,24 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
+export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, subject, condition, price, contact, image } = await req.json();
+  const { itemId } = await req.json();
 
-  await prisma.thriftItem.create({
-    data: {
-      title,
-      subject,
-      condition,
-      price: Number(price),
-      contact,
-      image,
-      sellerId: session.user.id,
-    },
+  const item = await prisma.thriftItem.findUnique({
+    where: { id: itemId },
+  });
+
+  if (!item || item.sellerId !== session.user.id)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  await prisma.thriftItem.update({
+    where: { id: itemId },
+    data: { isSold: true },
   });
 
   return NextResponse.json({ success: true });

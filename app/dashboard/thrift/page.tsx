@@ -16,13 +16,15 @@ type ThriftItem = {
   price: number;
   contact: string;
   image?: string;
+  isSold: boolean;
+  sellerId: string;
   createdAt: string;
   seller: {
+    id: string;
     name?: string;
-    grade?: string;
-    image?: string;
   };
 };
+
 
 export default function ThriftPage() {
   const { data: session } = useSession();
@@ -301,29 +303,85 @@ export default function ThriftPage() {
                   </div>
 
                   {/* RIGHT BUTTONS */}
-                  <div className="text-right text-xs space-y-1">
+                 <div className="flex flex-col items-end gap-2 min-w-[90px]">
 
-                    <p className="font-bold text-[#006A6A]">Rs {item.price}</p>
+  <p className="font-semibold text-[#006A6A] text-sm">
+    Rs {item.price}
+  </p>
 
-                    {/* Contact Button */}
-                    <a
-                      href={`tel:${item.contact}`}
-                      className="border px-2 py-1 rounded-md text-[#006A6A] hover:bg-[#006A6A] hover:text-white block"
-                    >
-                      Contact
-                    </a>
+  {/* SOLD Badge */}
+  {item.isSold && (
+    <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">
+      Sold
+    </span>
+  )}
 
-                    {/* Chat Button */}
-                    <button
-                      onClick={() => {
-                        window.location.href = `/dashboard/thrift/chat?item=${item.id}`;
-                      }}
-                      className="border px-2 py-1 rounded-md text-white bg-[#006A6A] hover:bg-[#005454] w-full"
-                    >
-                      Chat
-                    </button>
+  {/* Buyer View */}
+  {!item.isSold && session?.user?.id !== item.seller.id && (
+    <>
+      <a
+        href={`tel:${item.contact}`}
+        className="text-[11px] px-3 py-1 border rounded-md text-[#006A6A] hover:bg-[#006A6A] hover:text-white transition"
+      >
+        Contact
+      </a>
 
-                  </div>
+      <button
+        onClick={async () => {
+          const res = await fetch("/api/thrift/chat/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemId: item.id }),
+          });
+
+          const data = await res.json();
+
+          if (data.conversationId) {
+            window.location.href = `/dashboard/messages?thrift=${data.conversationId}`;
+          }
+        }}
+        className="text-[11px] px-3 py-1 rounded-md bg-[#006A6A] text-white hover:bg-[#005454] transition"
+      >
+        Chat
+      </button>
+    </>
+  )}
+
+  {/* Seller Controls */}
+  {session?.user?.id === item.seller.id && !item.isSold && (
+    <button
+      onClick={async () => {
+        await fetch("/api/thrift/sold", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId: item.id }),
+        });
+        fetchItems();
+      }}
+      className="text-[11px] px-3 py-1 border border-[#006A6A] text-[#006A6A] rounded-md hover:bg-[#006A6A] hover:text-white transition"
+    >
+      Mark Sold
+    </button>
+  )}
+
+  {session?.user?.id === item.seller.id && (
+    <button
+      onClick={async () => {
+        await fetch("/api/thrift/delete", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId: item.id }),
+        });
+        fetchItems();
+      }}
+      className="text-[11px] px-3 py-1 border border-red-300 text-red-500 rounded-md hover:bg-red-500 hover:text-white transition"
+    >
+      Remove
+    </button>
+  )}
+
+</div>
+
 
                 </div>
               ))}
