@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getStudentId } from "@/lib/auth/getStudentId";
+import { getCurrentUserId} from "@/lib/auth/getCurrentUserId";
 
 const ALLOWED_STATUSES = [
   "PAYMENT_PENDING",
@@ -13,7 +13,7 @@ const ALLOWED_STATUSES = [
 ] as const;
 
 export async function GET(req: NextRequest) {
-  const studentId = await getStudentId();
+  const studentId = await getCurrentUserId();
   if (!studentId) return NextResponse.json({ canChat: false });
 
   const tutorId = new URL(req.url).searchParams.get("tutorId");

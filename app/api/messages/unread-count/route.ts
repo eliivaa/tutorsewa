@@ -1,20 +1,39 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getStudentId } from "@/lib/auth/getStudentId";
+import { getCurrentUserId } from "@/lib/auth/getCurrentUserId";
+import { getTutorId } from "@/lib/auth/getTutorId";
 
 export async function GET() {
-  const studentId = await getStudentId();
-  if (!studentId) {
+  const userId = await getCurrentUserId();
+  const tutorId = getTutorId();
+
+  if (!userId && !tutorId) {
     return NextResponse.json({ count: 0 });
   }
 
   const count = await prisma.message.count({
     where: {
       isRead: false,
-      NOT: { senderUserId: studentId },
-      conversation: {
-        studentId,
-      },
+      AND: [
+        // message not sent by me
+        userId
+          ? { NOT: { senderUserId: userId } }
+          : { NOT: { senderTutorId: tutorId } },
+
+        // conversation where I participate
+        {
+          conversation: userId
+            ? {
+                OR: [
+                  { studentId: userId },
+                  { thriftUserId: userId },
+                ],
+              }
+            : {
+                tutorId: tutorId!,
+              },
+        },
+      ],
     },
   });
 

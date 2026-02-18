@@ -1157,6 +1157,8 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
+
 
 /* ================= UPDATED TYPE ================= */
 type Conversation = {
@@ -1165,18 +1167,13 @@ type Conversation = {
   allowed: boolean;
   type: "TUTOR_SESSION" | "THRIFT";
 
-  tutor?: {
-    id: string;
-    name: string;
+  person: {
+    id?: string;
+    name?: string | null;
     photo?: string | null;
   } | null;
-
-  thriftUser?: {
-    id: string;
-    name: string;
-    image?: string | null;
-  } | null;
 };
+
 
 type Msg = {
   id?: string;
@@ -1190,22 +1187,21 @@ type Msg = {
 
 /* ================= HELPER ================= */
 function getPerson(c: Conversation | null) {
-  if (!c) return { name: "", photo: "/default-avatar.png", label: "" };
-
-  if (c.type === "THRIFT") {
+  if (!c?.person) {
     return {
-      name: c.thriftUser?.name || "User",
-      photo: c.thriftUser?.image || "/default-avatar.png",
-      label: "🛒 Thrift Inquiry",
+      name: "User",
+      photo: "/default-avatar.png",
+      label: "",
     };
   }
 
   return {
-    name: c.tutor?.name || "Tutor",
-    photo: c.tutor?.photo || "/default-avatar.png",
-    label: "Tutor Chat",
+    name: c.person.name || "User",
+    photo: c.person.photo || "/default-avatar.png",
+    label: c.type === "THRIFT" ? "🛒 Thrift Inquiry" : "Tutor Chat",
   };
 }
+
 
 export default function StudentMessagesPage() {
   const { data: session, status } = useSession();
@@ -1221,6 +1217,9 @@ export default function StudentMessagesPage() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const activeIdRef = useRef<string | null>(null);
   const joinedRoomRef = useRef<string | null>(null);
+  const searchParams = useSearchParams();
+const conversationIdFromUrl = searchParams?.get("conversationId");
+
 
   /* ================= SOCKET INIT ================= */
   useEffect(() => {
@@ -1254,18 +1253,28 @@ export default function StudentMessagesPage() {
   }, []);
 
   /* ================= LOAD CONVERSATIONS ================= */
-  useEffect(() => {
-    (async () => {
-      const res = await fetch("/api/messages/conversations");
-      const data = await res.json();
+ useEffect(() => {
+  (async () => {
+    const res = await fetch("/api/messages/conversations");
+    const data = await res.json();
 
-      setConvos(data.conversations || []);
+    const list = data.conversations || [];
+    setConvos(list);
 
-      if (!active && data.conversations?.length) {
-        setActive(data.conversations[0]);
+    // 🧠 open the correct conversation from URL
+    if (conversationIdFromUrl) {
+      const match = list.find((c: any) => c.id === conversationIdFromUrl);
+      if (match) {
+        setActive(match);
+        return;
       }
-    })();
-  }, []);
+    }
+
+    // fallback (first chat)
+    if (list.length) setActive(list[0]);
+  })();
+}, [conversationIdFromUrl]);
+
 
   /* ================= JOIN ROOM ================= */
   useEffect(() => {
@@ -1353,9 +1362,10 @@ export default function StudentMessagesPage() {
                     <p className="text-xs text-gray-500">{person.label}</p>
                   </div>
                   {c.unread > 0 && (
-                    <span className="text-xs bg-red-500 text-white px-2 rounded-full">
-                      {c.unread}
-                    </span>
+                    <span className="min-w-[22px] h-[22px] flex items-center justify-center text-[11px] bg-red-500 text-white rounded-full">
+  {c.unread}
+</span>
+
                   )}
                 </div>
               </div>

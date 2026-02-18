@@ -73,14 +73,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getStudentId } from "@/lib/auth/getStudentId";
+import { getCurrentUserId} from "@/lib/auth/getCurrentUserId";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { conversationId: string } }
 ) {
   try {
-    const studentId = await getStudentId();
+    const studentId = await getCurrentUserId();
 
     if (!studentId) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
@@ -97,45 +97,55 @@ export async function POST(
       where: { id: params.conversationId },
     });
 
-    if (!conversation || conversation.studentId !== studentId) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-    }
+    const isParticipant =
+  conversation &&
+  (
+    conversation.studentId === studentId ||
+    conversation.thriftUserId === studentId ||
+    conversation.tutorId === studentId
+  );
 
-    // ============================================================
-    // 🧠 TUTOR CHAT → restrict messaging until booking accepted
-    // ============================================================
-    if (conversation.type === "TUTOR_SESSION") {
+if (!isParticipant) {
+  return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+}
 
-      if (!conversation.tutorId) {
-        return NextResponse.json(
-          { error: "INVALID_TUTOR_CONVERSATION" },
-          { status: 400 }
-        );
-      }
+// ============================================================
+// 🧠 TUTOR CHAT → restrict ONLY when student messages tutor
+// ============================================================
+if (conversation.type === "TUTOR_SESSION") {
 
-      const pastAcceptedBooking = await prisma.booking.findFirst({
-        where: {
-          studentId,
-          tutorId: conversation.tutorId,
-          status: {
-            in: [
-              "CONFIRMED",
-              "READY",
-              "COMPLETED",
-              "PARTIALLY_PAID",
-              "FULLY_PAID",
-            ],
-          },
+  // Only restrict if SENDER is the student of this conversation
+  const senderIsStudent = conversation.studentId === studentId;
+
+  if (senderIsStudent) {
+
+    const pastAcceptedBooking = await prisma.booking.findFirst({
+      where: {
+        studentId: conversation.studentId,   // 👈 IMPORTANT FIX
+        tutorId: conversation.tutorId!,
+        status: {
+          in: [
+            "PAYMENT_PENDING",
+            "PARTIALLY_PAID",
+            "FULLY_PAID",
+            "CONFIRMED",
+            "READY",
+            "COMPLETED",
+            "EXPIRED",
+          ],
         },
-      });
+      },
+    });
 
-      if (!pastAcceptedBooking) {
-        return NextResponse.json(
-          { error: "MESSAGING_NOT_ALLOWED" },
-          { status: 403 }
-        );
-      }
+    if (!pastAcceptedBooking) {
+      return NextResponse.json(
+        { error: "CHAT_LOCKED_UNTIL_TUTOR_ACCEPTS_BOOKING" },
+        { status: 403 }
+      );
     }
+  }
+}
+
 
     // ============================================================
     // 💬 Create Message (works for BOTH tutor & thrift)

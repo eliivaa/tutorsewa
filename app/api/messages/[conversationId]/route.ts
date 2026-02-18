@@ -35,13 +35,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getStudentId } from "@/lib/auth/getStudentId";
+import { getCurrentUserId} from "@/lib/auth/getCurrentUserId";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { conversationId: string } }
 ) {
-  const userId = await getStudentId();
+  const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ messages: [] });
   }

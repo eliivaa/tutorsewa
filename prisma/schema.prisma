@@ -328,14 +328,19 @@ model ThriftItem {
   contact   String
   image     String?
   grade     String?
-  
 
+  isSold    Boolean @default(false)   // 👈 ADD THIS
+  isActive  Boolean @default(true)    // 👈 OPTIONAL (better than delete)
 
   sellerId String
   seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+
+  @@index([isSold])
+  @@index([isActive])
 }
+
 
 //////////////////////
 // NEXTAUTH
@@ -387,6 +392,10 @@ model Notification {
   userId  String? // Student
   tutorId String? // Tutor
 
+    // ⭐ NEW
+  isForAdmin Boolean @default(false)
+  adminCategory String? // REGISTER / PAYMENT / SESSION / SYSTEM
+
   // Core content
   title   String
   message String
@@ -404,6 +413,8 @@ model Notification {
   // Read status
   isRead Boolean @default(false)
 
+
+
   // Timestamp
   createdAt DateTime @default(now())
 
@@ -413,6 +424,7 @@ model Notification {
 
   @@index([userId])
   @@index([tutorId])
+   @@index([isForAdmin])
 }
 
 //////////////////////
@@ -420,25 +432,31 @@ model Notification {
 //////////////////////
 
 model Conversation {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
+  // common
   studentId String
-  tutorId   String?      // 👈 optional now
-  thriftUserId String?   // 👈 NEW (seller)
+  student   User @relation("StudentConvos", fields: [studentId], references: [id])
 
-  student   User  @relation("StudentConvos", fields: [studentId], references: [id])
-   tutor      Tutor? @relation("TutorConvos", fields: [tutorId], references: [id])
-  thriftUser User?  @relation("ThriftUserConvos", fields: [thriftUserId], references: [id])
+  type ConversationType
 
-  messages  Message[]
-  type          ConversationType @default(TUTOR_SESSION)
-  thriftItemId  String?
+  // tutor chat
+  tutorId String?
+  tutor   Tutor? @relation("TutorConvos", fields: [tutorId], references: [id])
+
+  // thrift chat
+  thriftUserId String?
+  thriftUser   User? @relation("ThriftUserConvos", fields: [thriftUserId], references: [id])
+
+  thriftItemId String?
+
+  messages Message[]
+
   createdAt DateTime @default(now())
 
- 
-  @@index([studentId])
-  @@index([tutorId])
-  @@index([thriftUserId])
+  // IMPORTANT UNIQUES
+  @@unique([studentId, tutorId], map: "unique_tutor_chat")
+  @@unique([studentId, thriftUserId, thriftItemId], map: "unique_thrift_chat")
 }
 
 

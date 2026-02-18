@@ -15,15 +15,15 @@ export async function POST(
     select: { id: true, tutorId: true },
   });
 
-  if (!convo || convo.tutorId !== tutorId) {
+  if (!convo || convo.tutorId !== tutorId)
     return NextResponse.json({ ok: false }, { status: 403 });
-  }
 
+  // ⭐ ONLY mark student messages as read
   await prisma.message.updateMany({
     where: {
       conversationId: convo.id,
       isRead: false,
-      NOT: { senderTutorId: tutorId },
+      senderTutorId: null, // message sent by student
     },
     data: { isRead: true },
   });
