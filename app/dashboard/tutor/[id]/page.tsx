@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
 import Link from "next/link";
 
 interface TutorProfile {
@@ -26,13 +28,21 @@ interface Review {
 }
 
 export default function TutorProfilePage() {
-  const { id } = useParams();
+
+  const router = useRouter();
+
+ const params = useParams<{ id: string }>();
+const id = params?.id;
+;
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
   const [tutor, setTutor] = useState<TutorProfile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [showLockedModal, setShowLockedModal] = useState(false);
+
 
   // review form state
   const [rating, setRating] = useState(5);
@@ -180,12 +190,36 @@ export default function TutorProfilePage() {
           </div>
         </div>
 
-        <button
-          onClick={() => alert("Messaging will be enabled after booking")}
-          className="px-4 py-2 text-sm border rounded-lg hover:bg-[#E6F9F5]"
-        >
-          💬 Message Tutor
-        </button>
+<button
+  onClick={async () => {
+    const res = await fetch(`/api/messages/start?tutorId=${tutor.id}`);
+
+    let data: any = null;
+
+    try {
+      data = await res.json();
+    } catch {
+      alert("Server error. Please refresh.");
+      return;
+    }
+
+    
+    // 🚫 tutor never accepted any booking
+if (!data.allowed) {
+  setShowLockedModal(true);
+  return;
+}
+
+
+    // ✅ open chat
+    router.push(`/dashboard/messages?conversationId=${data.conversationId}`);
+  }}
+  className="px-4 py-2 text-sm border rounded-lg hover:bg-[#E6F9F5]"
+>
+  💬 Message Tutor
+</button>
+
+
       </div>
 
       {/* ================= ABOUT ================= */}
@@ -306,6 +340,44 @@ export default function TutorProfilePage() {
             </div>
           ))}
         </div>
+        {/* 🔒 CHAT LOCK MODAL */}
+      {showLockedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+
+          <div className="bg-white w-[380px] rounded-2xl shadow-xl p-6 text-center space-y-4">
+
+            <div className="text-red-500 text-4xl">🔒</div>
+
+            <h2 className="text-lg font-semibold text-[#004B4B]">
+              Messaging Locked
+            </h2>
+
+            <p className="text-sm text-gray-600 leading-relaxed">
+              You can only chat with this tutor after the tutor accepts your booking request.
+            </p>
+
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                onClick={() => setShowLockedModal(false)}
+                className="px-5 py-2 rounded-lg border text-gray-600 hover:bg-gray-100"
+              >
+                Close
+              </button>
+
+              <Link href={`/dashboard/tutor/${tutor.id}/book`}>
+                <button
+                  onClick={() => setShowLockedModal(false)}
+                  className="px-5 py-2 bg-[#4CB6B6] text-white rounded-lg hover:bg-[#3aa5a5]"
+                >
+                  Book Session
+                </button>
+              </Link>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       </div>
     </div>
   );

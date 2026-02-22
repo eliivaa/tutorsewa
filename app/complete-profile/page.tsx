@@ -18,8 +18,8 @@
 //     });
 
 //     if (res.ok) {
-//       // 🔥 force NextAuth to refresh JWT
-//       await fetch("/api/auth/session");
+//       // 🔥 THIS IS THE KEY LINE
+//       router.refresh();          // forces JWT refresh
 //       router.replace("/dashboard");
 //     }
 
@@ -56,11 +56,15 @@
 
 
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react"; // ⭐ ADD THIS
 
 export default function CompleteProfile() {
   const router = useRouter();
+  const { update } = useSession(); // ⭐ ADD THIS
+
   const [phone, setPhone] = useState("");
   const [grade, setGrade] = useState("");
   const [loading, setLoading] = useState(false);
@@ -75,8 +79,10 @@ export default function CompleteProfile() {
     });
 
     if (res.ok) {
-      // 🔥 THIS IS THE KEY LINE
-      router.refresh();          // forces JWT refresh
+      // 🔥 REAL FIX (NextAuth session refresh)
+      await update();
+
+      // ✅ Now middleware will allow dashboard
       router.replace("/dashboard");
     }
 
@@ -91,18 +97,21 @@ export default function CompleteProfile() {
         <input
           className="border p-2 w-full mb-3"
           placeholder="Phone Number"
+          value={phone}
           onChange={(e) => setPhone(e.target.value)}
         />
 
         <input
           className="border p-2 w-full mb-3"
           placeholder="Grade"
+          value={grade}
           onChange={(e) => setGrade(e.target.value)}
         />
 
         <button
           onClick={submit}
-          className="bg-green-600 text-white w-full py-2 rounded"
+          disabled={loading}
+          className="bg-green-600 text-white w-full py-2 rounded disabled:opacity-50"
         >
           {loading ? "Saving..." : "Save"}
         </button>

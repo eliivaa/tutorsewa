@@ -107,10 +107,11 @@ export default function LoginPage() {
 
   // 🔥 Remove NextAuth default error message
   useEffect(() => {
-    if (searchParams.get("error")) {
-      router.replace("/login"); // remove ?error= from URL
-    }
-  }, [searchParams, router]);
+  if (searchParams?.get("error")) {
+    router.replace("/login");
+  }
+}, [searchParams, router]);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

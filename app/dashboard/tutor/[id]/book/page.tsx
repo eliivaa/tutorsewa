@@ -39,7 +39,10 @@ function formatDate(date: string) {
 ====================== */
 
 export default function BookSessionPage() {
-  const { id: tutorId } = useParams();
+const params = useParams<{ id: string }>();
+const tutorId = params?.id ?? "";
+
+
   const router = useRouter();
 
   const [sessionType, setSessionType] =

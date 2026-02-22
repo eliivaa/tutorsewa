@@ -6,7 +6,7 @@ import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-
+import { adminLog } from "@/lib/adminLog";
 
 export async function POST(req: Request) {
   try {
@@ -31,16 +31,26 @@ export async function POST(req: Request) {
     const verifyToken = crypto.randomBytes(32).toString("hex");
 
     // Temporarily create user with verification token
-    await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        phone,
-        grade,
-        verifyToken,
-      },
-    });
+   await prisma.user.create({
+  data: {
+    name,
+    email,
+    password: hashedPassword,
+    phone,
+    grade,
+    verifyToken,
+    authProvider: "CREDENTIALS", 
+  },
+});
+
+await adminLog(
+  "REGISTER",
+  "New Student Registered",
+  `${name} (${email}) created an account`,
+  "SYSTEM_ANNOUNCEMENT",
+  "/admin/users"
+);
+
 
     // Send verification email
     const transporter = nodemailer.createTransport({
