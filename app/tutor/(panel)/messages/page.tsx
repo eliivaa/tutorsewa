@@ -372,25 +372,43 @@ export default function TutorMessagesPage() {
   }, []);
 
   /* ================= JOIN ROOM ================= */
-  useEffect(() => {
-    if (!active || !socket) return;
+  /* ================= JOIN ROOM ================= */
+useEffect(() => {
+  if (!active || !socket) return;
 
-    const conversationId = active.id;
-    activeIdRef.current = conversationId;
+  const conversationId = active.id;
+  activeIdRef.current = conversationId;
 
-    if (joinedRoomRef.current && joinedRoomRef.current !== conversationId) {
-      socket.emit("leave-room", joinedRoomRef.current);
-    }
+  if (joinedRoomRef.current && joinedRoomRef.current !== conversationId) {
+    socket.emit("leave-room", joinedRoomRef.current);
+  }
 
-    socket.emit("join-room", conversationId);
-    joinedRoomRef.current = conversationId;
+  socket.emit("join-room", conversationId);
+  joinedRoomRef.current = conversationId;
 
-    (async () => {
-      const res = await fetch(`/api/tutor/messages/${conversationId}`);
-      const data = await res.json();
-      setMessages(data.messages || []);
-    })();
-  }, [active, socket]);
+  async function openConversation() {
+    // 1️⃣ Load messages
+    const res = await fetch(`/api/tutor/messages/${conversationId}`);
+    const data = await res.json();
+    setMessages(data.messages || []);
+
+    // 2️⃣ 🔥 MARK AS READ (THIS WAS MISSING)
+    await fetch(`/api/tutor/messages/${conversationId}/read`, {
+      method: "POST",
+    });
+
+    // 3️⃣ Refresh conversation list (remove red dot)
+    const cRes = await fetch("/api/tutor/messages/conversations");
+    const cData = await cRes.json();
+    setConvos(cData.conversations || []);
+
+    // 4️⃣ Refresh sidebar badge counter
+    await fetch("/api/tutor/messages/unread-count");
+  }
+
+  openConversation();
+}, [active, socket]);
+
 
   /* ================= SEND ================= */
   async function send() {

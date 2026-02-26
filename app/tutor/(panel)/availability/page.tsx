@@ -480,6 +480,7 @@ export default function TutorAvailabilityPage() {
                   key={s.id}
                   className="flex justify-between items-center border px-4 py-2 mb-2 rounded-md"
                 >
+                  
                 <span className="text-sm">
   <strong>{s.subject}</strong>
   {s.level && ` · ${s.level}`}
