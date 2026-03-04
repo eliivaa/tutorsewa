@@ -260,6 +260,15 @@ export default function RegisterPage() {
             </button>
           </form>
 
+        <p className="text-sm text-center mt-3">
+  Already have an account?{" "}
+  <a
+    href="/login"
+    className="text-[#006A6A] font-medium hover:underline"
+  >
+    Login
+  </a>
+</p>
           {/* GOOGLE LOGIN */}
           <button
             type="button"

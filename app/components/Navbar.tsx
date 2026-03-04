@@ -10,25 +10,14 @@ export default function Navbar() {
   const router = useRouter();
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // const handleRedirect = (path: string) => {
-  //   setIsTransitioning(true);
-  //   // Add a small delay before navigating for smooth fade
-  //   setTimeout(() => {
-  //     router.push(path);
-  //     // remove overlay after animation
-  //     setTimeout(() => setIsTransitioning(false), 2000);
-  //   }, 600);
-  // };
-
   const handleRedirect = (path: string) => {
   setIsTransitioning(true);
-  // ⏳ Delay navigation to allow the animation to play fully
+  // Delay navigation to allow the animation to play fully
   setTimeout(() => {
     router.push(path);
     setTimeout(() => setIsTransitioning(false), 3000);
-  }, 1500); // stays on screen ~3s total
+  }, 1500); 
 };
-
 
   return (
     <>
