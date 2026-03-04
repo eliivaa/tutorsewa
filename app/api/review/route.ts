@@ -18,12 +18,35 @@ export async function POST(req: Request) {
 
   const { tutorId, rating, comment } = await req.json();
 
-  if (!tutorId || !rating) {
+  if (!tutorId || !rating || !comment) {
     return NextResponse.json(
       { error: "Missing fields" },
       { status: 400 }
     );
   }
+
+  /* =========================
+     CHECK COMPLETED BOOKING
+  ========================= */
+
+  const completedBooking = await prisma.booking.findFirst({
+    where: {
+      tutorId,
+      studentId: session.user.id,
+      status: "COMPLETED",
+    },
+  });
+
+  if (!completedBooking) {
+    return NextResponse.json(
+      { error: "You can only review after completing a session." },
+      { status: 403 }
+    );
+  }
+
+  /* =========================
+     UPSERT REVIEW
+  ========================= */
 
   const review = await prisma.review.upsert({
     where: {

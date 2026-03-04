@@ -1,17 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     const reviews = await prisma.review.findMany({
-      where: {
-        tutorId: params.id,
-      },
+      where: { tutorId: params.id },
       include: {
-        User: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -23,18 +22,28 @@ export async function GET(
       },
     });
 
-    // 🔥 normalize response for frontend
     const formatted = reviews.map((r) => ({
       id: r.id,
       rating: r.rating,
       comment: r.comment,
       user: {
-        id: r.User.id,
-        name: r.User.name,
+        id: r.user.id,
+        name: r.user.name,
       },
     }));
 
-    return NextResponse.json({ reviews: formatted });
+    /* ===== RATING DISTRIBUTION ===== */
+
+    const distribution = [1, 2, 3, 4, 5].map((star) => ({
+      star,
+      count: reviews.filter((r) => r.rating === star).length,
+    }));
+
+    return NextResponse.json({
+      reviews: formatted,
+      distribution,
+    });
+
   } catch (error) {
     console.error("FETCH REVIEWS ERROR:", error);
     return NextResponse.json(
