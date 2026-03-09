@@ -19,7 +19,8 @@
     },
 
     // ✔ Load custom NextAuth types correctly
-    "types": ["next-auth", "node", "./types/next-auth"]
+   "types": ["node"]
+
   },
 
   "include": [

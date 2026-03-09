@@ -127,7 +127,9 @@ model User {
   grade         String?
   image         String?
   emailVerified DateTime?
-  verifyToken   String?
+   // OTP EMAIL VERIFICATION
+  verifyCode   String?
+  verifyExpiry DateTime?
   authProvider  AuthProvider @default(CREDENTIALS)
   status        UserStatus   @default(ACTIVE)
 
