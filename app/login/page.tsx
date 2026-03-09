@@ -1,13 +1,18 @@
 
-
 // "use client";
 
 // import { useState, useEffect } from "react";
 // import { signIn } from "next-auth/react";
 // import toast, { Toaster } from "react-hot-toast";
 // import Image from "next/image";
+// import Link from "next/link";
 // import { useRouter, useSearchParams } from "next/navigation";
+// import dynamic from "next/dynamic";
+// import animationData from "@/public/secure-login.json";
 
+// const Lottie = dynamic(() => import("lottie-react"), {
+//   ssr: false,
+// });
 
 // export default function LoginPage() {
 //   const [form, setForm] = useState({ email: "", password: "" });
@@ -16,13 +21,12 @@
 //   const router = useRouter();
 //   const searchParams = useSearchParams();
 
-//   // 🔥 Remove NextAuth default error message
+//   // Remove NextAuth default error message
 //   useEffect(() => {
-//   if (searchParams?.get("error")) {
-//     router.replace("/login");
-//   }
-// }, [searchParams, router]);
-
+//     if (searchParams?.get("error")) {
+//       router.replace("/login");
+//     }
+//   }, [searchParams, router]);
 
 //   const handleLogin = async (e: React.FormEvent) => {
 //     e.preventDefault();
@@ -37,7 +41,7 @@
 //     setLoading(false);
 
 //     if (res?.error) {
-//       toast.error(res.error);
+//       toast.error("Invalid email or password");
 //       return;
 //     }
 
@@ -46,76 +50,121 @@
 //   };
 
 //   return (
-//     <div className="min-h-screen flex items-center justify-center bg-[#F2EFE7]">
+//     <div className="min-h-screen flex items-center justify-center bg-[#F2EFE7] px-4">
 //       <Toaster position="top-right" />
 
-//       <div className="bg-white shadow-md rounded-lg p-8 w-[350px] border border-[#48A6A7]/40">
-//         <h1 className="text-2xl font-bold text-[#006A6A] text-center mb-6">
-//           Welcome Back!
-//         </h1>
+//       <div className="bg-white shadow-xl rounded-xl overflow-hidden flex flex-col md:flex-row md:w-[850px] border border-[#48A6A7]/30">
 
-//         <form onSubmit={handleLogin} className="space-y-4">
-//           <input
-//             type="email"
-//             placeholder="Enter your email"
-//             className="w-full border rounded-md p-2"
-//             onChange={(e) => setForm({ ...form, email: e.target.value })}
-//           />
+//         {/* LEFT SIDE - LOGIN FORM */}
+//         <div className="flex-1 p-8">
+//           <h1 className="text-2xl font-bold text-[#006A6A] text-center mb-6">
+//             Welcome Back!
+//           </h1>
 
-//           <input
-//             type="password"
-//             placeholder="Enter your password"
-//             className="w-full border rounded-md p-2"
-//             onChange={(e) => setForm({ ...form, password: e.target.value })}
-//           />
+//           <form onSubmit={handleLogin} className="space-y-4">
 
-//           {/* 🔐 Forgot Password Link */}
-//           <p className="text-sm text-right">
-//             <a href="/forgot-password" className="text-[#006A6A] hover:underline">
-//               Forgot password?
-//             </a>
+//             <input
+//               type="email"
+//               placeholder="Enter your email"
+//               className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#48A6A7]"
+//               onChange={(e) =>
+//                 setForm({ ...form, email: e.target.value })
+//               }
+//               required
+//             />
+
+//             <input
+//               type="password"
+//               placeholder="Enter your password"
+//               className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-[#48A6A7]"
+//               onChange={(e) =>
+//                 setForm({ ...form, password: e.target.value })
+//               }
+//               required
+//             />
+
+//             {/* Forgot Password */}
+//             <p className="text-sm text-right">
+//               <Link
+//                 href="/forgot-password"
+//                 className="text-[#006A6A] hover:underline"
+//               >
+//                 Forgot password?
+//               </Link>
+//             </p>
+
+//             <button
+//               type="submit"
+//               disabled={loading}
+//               className="w-full bg-[#006A6A] text-white py-2 rounded-md hover:bg-[#005454] transition"
+//             >
+//               {loading ? "Logging in..." : "Login"}
+//             </button>
+//           </form>
+
+//           {/* Register Link */}
+//           <p className="text-sm text-center mt-4">
+//             Don’t have an account?{" "}
+//             <Link
+//               href="/register"
+//               className="text-[#006A6A] font-medium hover:underline"
+//             >
+//               Register
+//             </Link>
 //           </p>
 
+//           {/* Divider */}
+//           <div className="text-center mt-5 text-gray-500 text-sm">
+//             Or continue with
+//           </div>
+
+//           {/* Google Login */}
 //           <button
-//             type="submit"
-//             disabled={loading}
-//             className="w-full bg-[#006A6A] text-white py-2 rounded-md"
+//             onClick={() =>
+//               signIn(
+//   "google",
+//   { callbackUrl: "/dashboard" },
+//   { prompt: "select_account" }
+// )
+//             }
+//             className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2 hover:bg-gray-50 transition"
 //           >
-//             {loading ? "Logging in..." : "Login"}
+//             <Image
+//               src="/google.svg"
+//               alt="Google"
+//               width={20}
+//               height={20}
+//             />
+//             Google
 //           </button>
-//         </form>
-
-//         <p className="text-sm text-center mt-3">
-//   Don’t have an account?{" "}
-//   <a
-//     href="/register"
-//     className="text-[#006A6A] font-medium hover:underline"
-//   >
-//     Register
-//   </a>
-// </p>
-
-//         <div className="text-center mt-4 text-gray-600 text-sm">
-//           Or continue with
 //         </div>
 
-//         <button
-//           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-//           className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2"
-//         >
-//           <Image src="/google.svg" alt="Google" width={20} height={20} />
-//           Google
-//         </button>
+//         {/* RIGHT SIDE - LOTTIE ANIMATION */}
+//         <div className="hidden md:flex flex-col justify-center items-center bg-[#48A6A7]/10 w-1/2 p-8">
+//           <Lottie
+//             animationData={animationData}
+//             loop
+//             className="w-64"
+//           />
+//           <h4 className="text-[#006A6A] font-semibold mt-4 text-center">
+//             Secure & Protected Login
+//           </h4>
+//           <p className="text-sm text-gray-600 text-center mt-2">
+//             Your data is encrypted and fully protected.
+//           </p>
+//         </div>
+
 //       </div>
 //     </div>
 //   );
 // }
 
 
+
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import toast, { Toaster } from "react-hot-toast";
 import Image from "next/image";
 import Link from "next/link";
@@ -162,13 +211,24 @@ export default function LoginPage() {
     router.push("/dashboard");
   };
 
+  // FIX: Always clear old session before Google login
+  const handleGoogleLogin = async () => {
+    await signOut({ redirect: false });
+
+    await signIn(
+      "google",
+      { callbackUrl: "/dashboard" },
+      { prompt: "select_account" }
+    );
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F2EFE7] px-4">
       <Toaster position="top-right" />
 
       <div className="bg-white shadow-xl rounded-xl overflow-hidden flex flex-col md:flex-row md:w-[850px] border border-[#48A6A7]/30">
 
-        {/* LEFT SIDE - LOGIN FORM */}
+        {/* LEFT SIDE */}
         <div className="flex-1 p-8">
           <h1 className="text-2xl font-bold text-[#006A6A] text-center mb-6">
             Welcome Back!
@@ -196,7 +256,6 @@ export default function LoginPage() {
               required
             />
 
-            {/* Forgot Password */}
             <p className="text-sm text-right">
               <Link
                 href="/forgot-password"
@@ -215,7 +274,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Register Link */}
           <p className="text-sm text-center mt-4">
             Don’t have an account?{" "}
             <Link
@@ -226,43 +284,32 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          {/* Divider */}
           <div className="text-center mt-5 text-gray-500 text-sm">
             Or continue with
           </div>
 
           {/* Google Login */}
           <button
-            onClick={() =>
-              signIn("google", { callbackUrl: "/dashboard" })
-            }
+            onClick={handleGoogleLogin}
             className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2 hover:bg-gray-50 transition"
           >
-            <Image
-              src="/google.svg"
-              alt="Google"
-              width={20}
-              height={20}
-            />
+            <Image src="/google.svg" alt="Google" width={20} height={20} />
             Google
           </button>
         </div>
 
-        {/* RIGHT SIDE - LOTTIE ANIMATION */}
+        {/* RIGHT SIDE */}
         <div className="hidden md:flex flex-col justify-center items-center bg-[#48A6A7]/10 w-1/2 p-8">
-          <Lottie
-            animationData={animationData}
-            loop
-            className="w-64"
-          />
+          <Lottie animationData={animationData} loop className="w-64" />
+
           <h4 className="text-[#006A6A] font-semibold mt-4 text-center">
             Secure & Protected Login
           </h4>
+
           <p className="text-sm text-gray-600 text-center mt-2">
             Your data is encrypted and fully protected.
           </p>
         </div>
-
       </div>
     </div>
   );
