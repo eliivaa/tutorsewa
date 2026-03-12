@@ -22,6 +22,13 @@ export default function TutorProfilePage() {
   const [newSubject, setNewSubject] = useState("");
 
   /* =========================
+   REVIEWS STATE
+========================= */
+const [reviews, setReviews] = useState<any[]>([]);
+const [avgRating, setAvgRating] = useState(0);
+const [reviewCount, setReviewCount] = useState(0);
+
+  /* =========================
      FETCH PROFILE
   ========================= */
   useEffect(() => {
@@ -40,6 +47,25 @@ export default function TutorProfilePage() {
         setLoading(false);
       });
   }, []);
+
+
+  /* =========================
+   LOAD REVIEWS
+========================= */
+useEffect(() => {
+  async function loadReviews() {
+    const res = await fetch("/api/tutor/my-reviews");
+    const data = await res.json();
+
+    if (res.ok) {
+      setReviews(data.reviews || []);
+      setAvgRating(data.averageRating || 0);
+      setReviewCount(data.reviewCount || 0);
+    }
+  }
+
+  loadReviews();
+}, []);
 
   /* =========================
      PHOTO UPLOAD
@@ -125,16 +151,18 @@ export default function TutorProfilePage() {
 
   if (loading) return <p className="p-8">Loading profile...</p>;
 
-  return (
-    <div className="max-w-3xl mx-auto p-8 bg-white rounded-xl shadow">
+ return (
+  
+ <div className="w-full px-12 py-10 flex gap-10 items-start">
+
+    {/* ================= LEFT: EDIT PROFILE BOX ================= */}
+       <div className="flex-[3] bg-white rounded-2xl shadow-lg p-10">
 
       <h1 className="text-2xl font-bold text-[#004B4B] mb-6">
         Edit Profile
       </h1>
 
-      {/* =========================
-         PROFILE PHOTO
-      ========================= */}
+      {/* PROFILE PHOTO */}
       <div className="flex items-center gap-5 mb-6">
         {preview || form.photo ? (
           <img
@@ -159,30 +187,34 @@ export default function TutorProfilePage() {
         </label>
       </div>
 
-      <Input label="Full Name" value={form.name}
-        onChange={v => setForm({ ...form, name: v })} />
+      <Input
+        label="Full Name"
+        value={form.name}
+        onChange={v => setForm({ ...form, name: v })}
+      />
 
-      <Textarea label="Bio" value={form.bio}
-        onChange={v => setForm({ ...form, bio: v })} />
+      <Textarea
+        label="Bio"
+        value={form.bio}
+        onChange={v => setForm({ ...form, bio: v })}
+      />
 
-     <Input
-  label="Hourly Rate (Rs)"
-  type="text"   // 👈 use text, NOT number
-  value={form.rate}
-  onChange={(v) => {
-    // allow only digits
-    if (/^\d*$/.test(v)) {
-      setForm({ ...form, rate: v });
-    }
-  }}
-/>
+      <Input
+        label="Hourly Rate (Rs)"
+        type="text"
+        value={form.rate}
+        onChange={(v) => {
+          if (/^\d*$/.test(v)) {
+            setForm({ ...form, rate: v });
+          }
+        }}
+      />
 
-
-      <Input label="Experience"
+      <Input
+        label="Experience"
         value={form.experience}
-        onChange={v => setForm({ ...form, experience: v })} />
-
-    
+        onChange={v => setForm({ ...form, experience: v })}
+      />
 
       {/* SUBJECTS */}
       <div className="mb-6">
@@ -228,8 +260,60 @@ export default function TutorProfilePage() {
       >
         {saving ? "Saving..." : "Save Profile"}
       </button>
+
     </div>
-  );
+
+    {/* ================= RIGHT: REVIEWS BOX ================= */}
+    <div className="flex-[2] bg-white rounded-2xl shadow-lg p-8 sticky top-8">
+
+      <h2 className="text-lg font-bold text-[#004B4B] mb-4">
+        Student Reviews
+      </h2>
+
+      <p className="text-lg font-semibold text-yellow-600 mb-4">
+        ⭐ {avgRating.toFixed(1)} out of 5
+        <span className="text-gray-500 text-sm ml-2">
+          ({reviewCount})
+        </span>
+      </p>
+
+      {reviews.length === 0 && (
+        <p className="text-sm text-gray-500">
+          No reviews yet.
+        </p>
+      )}
+
+      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+        {reviews.map((r, index) => (
+          <div key={index} className="border rounded-lg p-3">
+            <div className="flex justify-between items-center">
+              <p className="font-medium text-sm text-[#004B4B]">
+                {r.user?.name || "Anonymous"}
+              </p>
+
+              <div className="text-yellow-500 text-sm">
+                {"★".repeat(r.rating)}
+                {"☆".repeat(5 - r.rating)}
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-700 mt-2">
+              {r.comment}
+            </p>
+
+            <p className="text-xs text-green-600 mt-2">
+              ✔ Verified Student
+            </p>
+          </div>
+        ))}
+      </div>
+
+    </div>
+
+  </div>
+);
+    
+  
 }
 
 /* ================= COMPONENTS ================= */

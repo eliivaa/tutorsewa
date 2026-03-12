@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import Link from "next/link";
 import TutorTopbar from "@/app/components/tutor/TutorTopbar";
@@ -18,6 +19,7 @@ interface TutorMe {
 /* ======================
    SIDEBAR LINK
 ====================== */
+
 function SidebarLink({
   label,
   href,
@@ -29,29 +31,45 @@ function SidebarLink({
   disabled?: boolean;
   badge?: number;
 }) {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+
   return (
     <Link
       href={disabled ? "#" : href}
-      className={`flex items-center justify-between p-3 rounded text-sm font-medium transition ${
-        disabled
-          ? "opacity-40 cursor-not-allowed"
-          : "hover:bg-[#066666]"
-      }`}
-      onClick={(e) => {
-        if (disabled) e.preventDefault();
-      }}
+      onClick={(e) => disabled && e.preventDefault()}
+      className={`
+        relative flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium
+        transition-all duration-300 ease-in-out
+        ${disabled ? "opacity-40 cursor-not-allowed" : ""}
+        ${
+          isActive
+            ? "bg-[#066666] text-white shadow-inner"
+            : "text-gray-200 hover:bg-[#0a5f5f] hover:pl-6"
+        }
+      `}
     >
-      <span>{label}</span>
+      <span className="transition-all duration-300">
+        {label}
+      </span>
 
       {badge > 0 && (
-        <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+        <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
           {badge}
         </span>
       )}
+
+      {/* Smooth Active Indicator */}
+      <span
+        className={`
+          absolute left-0 top-0 h-full w-1 bg-[#F4F4ED] rounded-r
+          transition-all duration-300
+          ${isActive ? "opacity-100" : "opacity-0"}
+        `}
+      />
     </Link>
   );
 }
-
 
 /* ======================
    LAYOUT
@@ -83,7 +101,7 @@ useEffect(() => {
   useEffect(() => {
     fetch("/api/tutor/me")
       .then((res) => res.json())
-      .then(setTutor);
+      .then((data) => setTutor(data.tutor));
   }, []);
 
   if (!tutor)
@@ -101,7 +119,7 @@ useEffect(() => {
       <div className="flex">
 
         {/* SIDEBAR */}
-        <aside className="w-64 bg-[#004B4B] text-white p-6 space-y-3 min-h-[calc(100vh-56px)]">
+        <aside className="w-64 bg-gradient-to-b from-[#004B4B] to-[#066666] text-white p-6 space-y-3 min-h-[calc(100vh-56px)] shadow-xl">
           <h2 className="text-2xl font-bold mb-8">Tutor Panel</h2>
 
           {/* Always allowed */}

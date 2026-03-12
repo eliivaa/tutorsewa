@@ -1,50 +1,3 @@
-// import { NextResponse } from "next/server";
-// import { getServerSession } from "next-auth";
-// import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-// import { prisma } from "@/lib/prisma";
-
-// export async function PUT(req: Request) {
-//   try {
-//     const session = await getServerSession(authOptions);
-
-//     if (!session?.user?.email) {
-//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-//     }
-
-//     const {
-//       name,
-//       bio,
-//       subjects,
-//       rate,
-//       experience,
-//       level,
-//       photo,
-//     } = await req.json();
-
-//     const tutor = await prisma.tutor.update({
-//       where: { email: session.user.email },
-//       data: {
-//         name,
-//         bio,
-//         subjects,
-//         rate,
-//         experience,
-//         level,
-//         photo,
-//       },
-//     });
-
-//     return NextResponse.json({ tutor });
-//   } catch (err) {
-//     console.error("UPDATE TUTOR PROFILE ERROR:", err);
-//     return NextResponse.json(
-//       { error: "Failed to update profile" },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import { NextRequest, NextResponse } from "next/server";
@@ -70,13 +23,16 @@ export async function GET(req: NextRequest) {
   }
 
   const tutor = await prisma.tutor.findUnique({
-    where: { id: tutorId },
-    select: {
-      id: true,
-      name: true,
-      subjects: true, // ✅ REQUIRED FOR DROPDOWN
-    },
-  });
+  where: { id: tutorId },
+  select: {
+    id: true,
+    name: true,
+    subjects: true,
+    experience: true,
+    bio: true,
+    rate: true,
+  },
+});
 
   return NextResponse.json({ tutor });
 }
