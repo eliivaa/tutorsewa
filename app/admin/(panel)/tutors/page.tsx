@@ -1,9 +1,256 @@
+// "use client";
+
+// import { useEffect, useState } from "react";
+// import Link from "next/link";
+
+// /* ===================== TYPES ===================== */
+// type TutorStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+
+// interface Tutor {
+//   id: string;
+//   name: string;
+//   email: string;
+//   phone: string;
+//   subjects: string[];
+//   experience?: string | null;
+//   photo?: string | null;
+//   status: TutorStatus;
+// }
+
+// /* ===================== PAGE ===================== */
+// export default function AdminTutorManagement() {
+//   const [tutors, setTutors] = useState<Tutor[]>([]);
+//   const [filter, setFilter] = useState<"ALL" | TutorStatus>("ALL");
+//   const [search, setSearch] = useState("");
+//   const [loading, setLoading] = useState(true);
+
+//   useEffect(() => {
+//     async function fetchTutors() {
+//       try {
+//         const res = await fetch("/api/admin/tutors", {
+//           method: "GET",
+//           cache: "no-store",
+//         });
+//         const data = await res.json();
+//         setTutors(data.tutors || []);
+//       } catch {
+//         alert("Failed to load tutors");
+//       } finally {
+//         setLoading(false);
+//       }
+//     }
+
+//     fetchTutors();
+//   }, []);
+
+//   async function updateStatus(id: string, status: TutorStatus) {
+//     const res = await fetch("/api/admin/tutors/update-status", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ tutorId: id, status }),
+//     });
+
+//     const data = await res.json();
+
+//     if (!res.ok) {
+//       alert(data.error || "Failed to update status");
+//       return;
+//     }
+
+//     setTutors((prev) =>
+//       prev.map((t) => (t.id === id ? { ...t, status } : t))
+//     );
+
+//     alert(data.message);
+//   }
+
+//   const filteredTutors = tutors.filter((t) => {
+//     const matchesStatus = filter === "ALL" || t.status === filter;
+//     const matchesSearch =
+//       t.name.toLowerCase().includes(search.toLowerCase()) ||
+//       t.email.toLowerCase().includes(search.toLowerCase());
+//     return matchesStatus && matchesSearch;
+//   });
+
+//   if (loading) {
+//     return (
+//       <div className="min-h-screen flex items-center justify-center">
+//         <p className="text-lg animate-pulse">Loading tutors...</p>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="p-8 bg-[#F2EFE7] min-h-screen text-[#004B4B]">
+//       <h1 className="text-3xl font-bold mb-6">Tutor Management</h1>
+
+//       {/* STATS */}
+//       <div className="grid grid-cols-4 gap-4 mb-8">
+//         <StatBox label="Total Tutors" value={tutors.length} />
+//         <StatBox label="Approved" value={tutors.filter(t => t.status === "APPROVED").length} />
+//         <StatBox label="Pending" value={tutors.filter(t => t.status === "PENDING").length} />
+//         <StatBox label="Suspended" value={tutors.filter(t => t.status === "SUSPENDED").length} />
+//       </div>
+
+//       {/* SEARCH + FILTER */}
+//       <div className="flex justify-between mb-4">
+//         <input
+//           className="px-4 py-2 border rounded w-1/3"
+//           placeholder="Search tutors by name or email..."
+//           onChange={(e) => setSearch(e.target.value)}
+//         />
+
+//         <div className="flex gap-2">
+//           {["ALL", "PENDING", "APPROVED", "SUSPENDED", "REJECTED"].map((s) => (
+//             <FilterButton
+//               key={s}
+//               label={s}
+//               active={filter === s}
+//               onClick={() => setFilter(s as any)}
+//             />
+//           ))}
+//         </div>
+//       </div>
+
+//       {/* TABLE */}
+//       <table className="w-full bg-white shadow rounded">
+//         <thead className="bg-[#EFEAE2]">
+//           <tr>
+//             <th className="p-3">Tutor</th>
+//             <th className="p-3">Contact</th>
+//             <th className="p-3">Subjects</th>
+//             <th className="p-3">Experience</th>
+//             <th className="p-3">Status</th>
+//             <th className="p-3">Actions</th>
+//           </tr>
+//         </thead>
+
+//         <tbody>
+//           {filteredTutors.map((t) => (
+//             <tr key={t.id} className="border-b">
+//               <td className="p-3 flex gap-2 items-center">
+//                 <img
+//                   src={t.photo || "/default-user.png"}
+//                   className="w-10 h-10 rounded-full"
+//                 />
+//                 {t.name}
+//               </td>
+
+//               <td className="p-3">{t.phone}</td>
+
+//               <td className="p-3">
+//                 <div className="flex flex-wrap gap-1">
+//                   {t.subjects.map((s, i) => (
+//                     <span key={i} className="px-2 py-1 text-xs bg-[#E6F9F5] rounded">
+//                       {s.split("|")[0]}
+//                     </span>
+//                   ))}
+//                 </div>
+//               </td>
+
+//               <td className="p-3">{t.experience || "—"}</td>
+
+//               <td className="p-3">
+//                 <StatusBadge status={t.status} />
+//               </td>
+
+//               {/* ✅ FIXED ACTION LOGIC */}
+//               <td className="p-3 flex gap-2">
+//                 <Link href={`/admin/tutors/${t.id}`}>
+//                   <button className="px-4 py-2 rounded-full bg-blue-100 text-blue-700 border">
+//                     View
+//                   </button>
+//                 </Link>
+
+//                 {t.status === "PENDING" && (
+//                   <>
+//                     <ActionButton label="Approve" color="green" onClick={() => updateStatus(t.id, "APPROVED")} />
+//                     <ActionButton label="Reject" color="gray" onClick={() => updateStatus(t.id, "REJECTED")} />
+//                   </>
+//                 )}
+
+//                 {t.status === "APPROVED" && (
+//                   <ActionButton label="Suspend" color="red" onClick={() => updateStatus(t.id, "SUSPENDED")} />
+//                 )}
+
+//                 {t.status === "SUSPENDED" && (
+//                   <ActionButton label="Reinstate" color="orange" onClick={() => updateStatus(t.id, "APPROVED")} />
+//                 )}
+//               </td>
+//             </tr>
+//           ))}
+//         </tbody>
+//       </table>
+//     </div>
+//   );
+// }
+
+// /* ===================== HELPERS ===================== */
+
+// function StatBox({ label, value }: { label: string; value: number }) {
+//   return (
+//     <div className="bg-white shadow p-4 rounded">
+//       <div className="text-sm">{label}</div>
+//       <div className="text-2xl font-bold">{value}</div>
+//     </div>
+//   );
+// }
+
+// function FilterButton({ label, active, onClick }: any) {
+//   return (
+//     <button
+//       onClick={onClick}
+//       className={`px-4 py-2 rounded border ${active ? "bg-[#004B4B] text-white" : "bg-white"}`}
+//     >
+//       {label}
+//     </button>
+//   );
+// }
+
+// function StatusBadge({ status }: { status: TutorStatus }) {
+//   const styles: any = {
+//     APPROVED: "bg-green-100 text-green-700",
+//     PENDING: "bg-yellow-100 text-yellow-700",
+//     SUSPENDED: "bg-red-100 text-red-700",
+//     REJECTED: "bg-gray-200 text-gray-700",
+//   };
+
+//   return (
+//     <span className={`px-4 py-1 rounded-full font-semibold ${styles[status]}`}>
+//       {status}
+//     </span>
+//   );
+// }
+
+// function ActionButton({ label, color, onClick }: any) {
+//   const styles: any = {
+//     green: "bg-green-100 text-green-700",
+//     red: "bg-red-100 text-red-700",
+//     orange: "bg-orange-100 text-orange-700",
+//     gray: "bg-gray-200 text-gray-700",
+//   };
+
+//   return (
+//     <button
+//       onClick={onClick}
+//       className={`px-4 py-2 rounded-full border ${styles[color]}`}
+//     >
+//       {label}
+//     </button>
+//   );
+// }
+
+
+
+// new
+
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-/* ===================== TYPES ===================== */
+/* ================= TYPES ================= */
+
 type TutorStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 
 interface Tutor {
@@ -15,39 +262,69 @@ interface Tutor {
   experience?: string | null;
   photo?: string | null;
   status: TutorStatus;
+
+  rejectionReason?: string | null;
+  suspensionReason?: string | null;
 }
 
-/* ===================== PAGE ===================== */
+/* ================= PAGE ================= */
+
 export default function AdminTutorManagement() {
+
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [filter, setFilter] = useState<"ALL" | TutorStatus>("ALL");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const [reasonModal, setReasonModal] = useState<{
+    open: boolean;
+    tutorId?: string;
+    status?: TutorStatus;
+  }>({ open: false });
+
+  const [reason, setReason] = useState("");
+
+  /* ================= FETCH ================= */
+
   useEffect(() => {
+
     async function fetchTutors() {
+
       try {
+
         const res = await fetch("/api/admin/tutors", {
-          method: "GET",
           cache: "no-store",
         });
+
         const data = await res.json();
         setTutors(data.tutors || []);
+
       } catch {
         alert("Failed to load tutors");
       } finally {
         setLoading(false);
       }
+
     }
 
     fetchTutors();
+
   }, []);
 
-  async function updateStatus(id: string, status: TutorStatus) {
+  /* ================= UPDATE STATUS ================= */
+
+  async function updateStatus(id: string, status: TutorStatus, reason?: string) {
+
     const res = await fetch("/api/admin/tutors/update-status", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tutorId: id, status }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tutorId: id,
+        status,
+        reason
+      }),
     });
 
     const data = await res.json();
@@ -62,59 +339,100 @@ export default function AdminTutorManagement() {
     );
 
     alert(data.message);
+
   }
 
+  /* ================= FILTER ================= */
+
   const filteredTutors = tutors.filter((t) => {
-    const matchesStatus = filter === "ALL" || t.status === filter;
+
+    const matchesStatus =
+      filter === "ALL" || t.status === filter;
+
     const matchesSearch =
       t.name.toLowerCase().includes(search.toLowerCase()) ||
       t.email.toLowerCase().includes(search.toLowerCase());
+
     return matchesStatus && matchesSearch;
+
   });
 
+  /* ================= LOADING ================= */
+
   if (loading) {
+
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-lg animate-pulse">Loading tutors...</p>
       </div>
     );
+
   }
 
+  /* ================= UI ================= */
+
   return (
+
     <div className="p-8 bg-[#F2EFE7] min-h-screen text-[#004B4B]">
-      <h1 className="text-3xl font-bold mb-6">Tutor Management</h1>
+
+      <h1 className="text-3xl font-bold mb-6">
+        Tutor Management
+      </h1>
 
       {/* STATS */}
+
       <div className="grid grid-cols-4 gap-4 mb-8">
+
         <StatBox label="Total Tutors" value={tutors.length} />
-        <StatBox label="Approved" value={tutors.filter(t => t.status === "APPROVED").length} />
-        <StatBox label="Pending" value={tutors.filter(t => t.status === "PENDING").length} />
-        <StatBox label="Suspended" value={tutors.filter(t => t.status === "SUSPENDED").length} />
+
+        <StatBox
+          label="Approved"
+          value={tutors.filter(t => t.status === "APPROVED").length}
+        />
+
+        <StatBox
+          label="Pending"
+          value={tutors.filter(t => t.status === "PENDING").length}
+        />
+
+        <StatBox
+          label="Suspended"
+          value={tutors.filter(t => t.status === "SUSPENDED").length}
+        />
+
       </div>
 
       {/* SEARCH + FILTER */}
+
       <div className="flex justify-between mb-4">
+
         <input
           className="px-4 py-2 border rounded w-1/3"
-          placeholder="Search tutors by name or email..."
+          placeholder="Search tutors..."
           onChange={(e) => setSearch(e.target.value)}
         />
 
         <div className="flex gap-2">
-          {["ALL", "PENDING", "APPROVED", "SUSPENDED", "REJECTED"].map((s) => (
+
+          {["ALL","PENDING","APPROVED","SUSPENDED","REJECTED"].map((s)=>(
             <FilterButton
               key={s}
               label={s}
               active={filter === s}
-              onClick={() => setFilter(s as any)}
+              onClick={()=>setFilter(s as any)}
             />
           ))}
+
         </div>
+
       </div>
 
       {/* TABLE */}
+
       <table className="w-full bg-white shadow rounded">
+
         <thead className="bg-[#EFEAE2]">
+
           <tr>
             <th className="p-3">Tutor</th>
             <th className="p-3">Contact</th>
@@ -123,39 +441,72 @@ export default function AdminTutorManagement() {
             <th className="p-3">Status</th>
             <th className="p-3">Actions</th>
           </tr>
+
         </thead>
 
         <tbody>
-          {filteredTutors.map((t) => (
+
+          {filteredTutors.map((t)=>(
             <tr key={t.id} className="border-b">
+
               <td className="p-3 flex gap-2 items-center">
+
                 <img
                   src={t.photo || "/default-user.png"}
                   className="w-10 h-10 rounded-full"
                 />
+
                 {t.name}
+
               </td>
 
               <td className="p-3">{t.phone}</td>
 
               <td className="p-3">
+
                 <div className="flex flex-wrap gap-1">
-                  {t.subjects.map((s, i) => (
-                    <span key={i} className="px-2 py-1 text-xs bg-[#E6F9F5] rounded">
+
+                  {t.subjects.map((s,i)=>(
+                    <span
+                      key={i}
+                      className="px-2 py-1 text-xs bg-[#E6F9F5] rounded"
+                    >
                       {s.split("|")[0]}
                     </span>
                   ))}
-                </div>
-              </td>
 
-              <td className="p-3">{t.experience || "—"}</td>
+                </div>
+
+              </td>
 
               <td className="p-3">
-                <StatusBadge status={t.status} />
+                {t.experience || "—"}
               </td>
 
-              {/* ✅ FIXED ACTION LOGIC */}
+              {/* STATUS + REASON */}
+
+              <td className="p-3">
+
+                <StatusBadge status={t.status}/>
+
+                {t.status === "REJECTED" && t.rejectionReason && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Reason: {t.rejectionReason}
+                  </p>
+                )}
+
+                {t.status === "SUSPENDED" && t.suspensionReason && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Reason: {t.suspensionReason}
+                  </p>
+                )}
+
+              </td>
+
+              {/* ACTIONS */}
+
               <td className="p-3 flex gap-2">
+
                 <Link href={`/admin/tutors/${t.id}`}>
                   <button className="px-4 py-2 rounded-full bg-blue-100 text-blue-700 border">
                     View
@@ -164,78 +515,182 @@ export default function AdminTutorManagement() {
 
                 {t.status === "PENDING" && (
                   <>
-                    <ActionButton label="Approve" color="green" onClick={() => updateStatus(t.id, "APPROVED")} />
-                    <ActionButton label="Reject" color="gray" onClick={() => updateStatus(t.id, "REJECTED")} />
+                    <ActionButton
+                      label="Approve"
+                      color="green"
+                      onClick={() => updateStatus(t.id,"APPROVED")}
+                    />
+
+                    <ActionButton
+                      label="Reject"
+                      color="gray"
+                      onClick={() => setReasonModal({
+                        open:true,
+                        tutorId:t.id,
+                        status:"REJECTED"
+                      })}
+                    />
                   </>
                 )}
 
                 {t.status === "APPROVED" && (
-                  <ActionButton label="Suspend" color="red" onClick={() => updateStatus(t.id, "SUSPENDED")} />
+                  <ActionButton
+                    label="Suspend"
+                    color="red"
+                    onClick={()=>setReasonModal({
+                      open:true,
+                      tutorId:t.id,
+                      status:"SUSPENDED"
+                    })}
+                  />
                 )}
 
                 {t.status === "SUSPENDED" && (
-                  <ActionButton label="Reinstate" color="orange" onClick={() => updateStatus(t.id, "APPROVED")} />
+                  <ActionButton
+                    label="Reinstate"
+                    color="orange"
+                    onClick={()=>updateStatus(t.id,"APPROVED")}
+                  />
                 )}
+
               </td>
+
             </tr>
           ))}
+
         </tbody>
+
       </table>
+
+      {/* MODAL */}
+
+      {reasonModal.open && (
+
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+
+          <div className="bg-white p-6 rounded-xl w-96">
+
+            <h2 className="text-xl font-bold mb-4">
+              {reasonModal.status === "REJECTED"
+                ? "Reject Tutor"
+                : "Suspend Tutor"}
+            </h2>
+
+            <textarea
+              className="w-full border rounded p-2 mb-4"
+              rows={4}
+              placeholder="Enter reason..."
+              value={reason}
+              onChange={(e)=>setReason(e.target.value)}
+            />
+
+            <div className="flex justify-end gap-2">
+
+              <button
+                className="px-4 py-2 border rounded"
+                onClick={()=>setReasonModal({open:false})}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded"
+                onClick={()=>{
+
+                  if(!reason.trim()){
+                    alert("Reason required");
+                    return;
+                  }
+
+                  updateStatus(
+                    reasonModal.tutorId!,
+                    reasonModal.status!,
+                    reason
+                  );
+
+                  setReason("");
+                  setReasonModal({open:false});
+
+                }}
+              >
+                Confirm
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
     </div>
+
   );
+
 }
 
-/* ===================== HELPERS ===================== */
+/* ================= HELPERS ================= */
 
-function StatBox({ label, value }: { label: string; value: number }) {
-  return (
+function StatBox({label,value}:{label:string,value:number}){
+
+  return(
     <div className="bg-white shadow p-4 rounded">
       <div className="text-sm">{label}</div>
       <div className="text-2xl font-bold">{value}</div>
     </div>
-  );
+  )
+
 }
 
-function FilterButton({ label, active, onClick }: any) {
-  return (
+function FilterButton({label,active,onClick}:any){
+
+  return(
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded border ${active ? "bg-[#004B4B] text-white" : "bg-white"}`}
+      className={`px-4 py-2 rounded border ${
+        active ? "bg-[#004B4B] text-white" : "bg-white"
+      }`}
     >
       {label}
     </button>
-  );
+  )
+
 }
 
-function StatusBadge({ status }: { status: TutorStatus }) {
-  const styles: any = {
-    APPROVED: "bg-green-100 text-green-700",
-    PENDING: "bg-yellow-100 text-yellow-700",
-    SUSPENDED: "bg-red-100 text-red-700",
-    REJECTED: "bg-gray-200 text-gray-700",
+function StatusBadge({status}:{status:TutorStatus}){
+
+  const styles:any={
+    APPROVED:"bg-green-100 text-green-700",
+    PENDING:"bg-yellow-100 text-yellow-700",
+    SUSPENDED:"bg-red-100 text-red-700",
+    REJECTED:"bg-gray-200 text-gray-700"
   };
 
-  return (
+  return(
     <span className={`px-4 py-1 rounded-full font-semibold ${styles[status]}`}>
       {status}
     </span>
-  );
+  )
+
 }
 
-function ActionButton({ label, color, onClick }: any) {
-  const styles: any = {
-    green: "bg-green-100 text-green-700",
-    red: "bg-red-100 text-red-700",
-    orange: "bg-orange-100 text-orange-700",
-    gray: "bg-gray-200 text-gray-700",
+function ActionButton({label,color,onClick}:any){
+
+  const styles:any={
+    green:"bg-green-100 text-green-700",
+    red:"bg-red-100 text-red-700",
+    orange:"bg-orange-100 text-orange-700",
+    gray:"bg-gray-200 text-gray-700"
   };
 
-  return (
+  return(
     <button
       onClick={onClick}
       className={`px-4 py-2 rounded-full border ${styles[color]}`}
     >
       {label}
     </button>
-  );
+  )
+
 }
