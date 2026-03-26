@@ -14,9 +14,10 @@ export async function PATCH(
 
     const result = await prisma.user.update({
       where: { id: params.id },
-      data: {
-        status: isSuspended ? "SUSPENDED" : "ACTIVE",
-      },
+     data: {
+  status: isSuspended ? "SUSPENDED" : "ACTIVE",
+  suspendedBy: isSuspended ? "ADMIN" : null,
+},
     });
 
     console.log("Updated user:", result.id, result.status);

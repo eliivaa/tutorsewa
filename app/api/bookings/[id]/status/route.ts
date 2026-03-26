@@ -139,14 +139,13 @@ export async function PATCH(
     // ================= STATUS UPDATE =================
     let newStatus: BookingStatus;
 
-    if (action === "APPROVE") {
-      newStatus = BookingStatus.PAYMENT_PENDING;
-    } else if (action === "REJECT") {
-      newStatus = BookingStatus.REJECTED;
-    } else {
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-    }
-
+  if (action === "ACCEPT") {
+  newStatus = BookingStatus.PAYMENT_PENDING;
+} else if (action === "REJECT") {
+  newStatus = BookingStatus.REJECTED;
+} else {
+  return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+}
     const updated = await prisma.booking.update({
       where: { id: bookingId },
       data: { status: newStatus },
@@ -156,15 +155,15 @@ export async function PATCH(
     await prisma.notification.create({
       data: {
         userId: booking.studentId,
-        title: action === "APPROVE" ? "Booking Approved" : "Booking Rejected",
-        message:
-          action === "APPROVE"
-            ? "Your booking has been approved. Please complete payment."
-            : "Your booking request was rejected by the tutor.",
-        type:
-          action === "APPROVE"
-            ? NotificationType.BOOKING_ACCEPTED
-            : NotificationType.BOOKING_REJECTED,
+        title: action === "ACCEPT" ? "Booking Accepted" : "Booking Rejected",
+message:
+  action === "ACCEPT"
+    ? "Your booking has been accepted. Please complete payment."
+    : "Your booking request was rejected by the tutor.",
+type:
+  action === "ACCEPT"
+    ? NotificationType.BOOKING_ACCEPTED
+    : NotificationType.BOOKING_REJECTED,
         bookingId: booking.id,
         actionUrl: "/dashboard/sessions",
       },
