@@ -10,7 +10,7 @@ export async function GET() {
         payments: {
           where: {
             status: {
-              in: ["HALF_PAID", "FULL_PAID"],
+               in: ["HALF_PAID", "FULL_PAID", "REMAINING_DUE"],
             },
           },
         },

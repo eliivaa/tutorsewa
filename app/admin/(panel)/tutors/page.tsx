@@ -258,7 +258,7 @@ interface Tutor {
   name: string;
   email: string;
   phone: string;
-  subjects: string[];
+ subjects: (string | { subject: string; level?: string })[];
   experience?: string | null;
   photo?: string | null;
   status: TutorStatus;
@@ -373,7 +373,7 @@ export default function AdminTutorManagement() {
 
   return (
 
-    <div className="p-8 bg-[#F2EFE7] min-h-screen text-[#004B4B]">
+   <div className="p-8 min-h-screen text-[#004B4B]">
 
       <h1 className="text-3xl font-bold mb-6">
         Tutor Management
@@ -462,22 +462,38 @@ export default function AdminTutorManagement() {
 
               <td className="p-3">{t.phone}</td>
 
-              <td className="p-3">
+             <td className="p-3">
+  <div className="flex flex-wrap gap-2">
 
-                <div className="flex flex-wrap gap-1">
+    {t.subjects.map((s, i) => {
+      let sub = "";
+      let lvl = "";
 
-                  {t.subjects.map((s,i)=>(
-                    <span
-                      key={i}
-                      className="px-2 py-1 text-xs bg-[#E6F9F5] rounded"
-                    >
-                      {s.split("|")[0]}
-                    </span>
-                  ))}
+      // handle both string and object safely
+      if (typeof s === "string") {
+        [sub, lvl] = s.split("|");
+      } else {
+        sub = s.subject || "";
+        lvl = s.level || "";
+      }
 
-                </div>
+      const format = (text: string) =>
+        text.charAt(0).toUpperCase() + text.slice(1);
 
-              </td>
+      return (
+        <span
+          key={i}
+          className="px-3 py-1 text-xs bg-[#E6F9F5] text-[#004B4B] rounded-full font-medium"
+        >
+          {lvl
+            ? `${format(sub)} (${format(lvl)})`
+            : format(sub)}
+        </span>
+      );
+    })}
+
+  </div>
+</td>
 
               <td className="p-3">
                 {t.experience || "—"}
