@@ -51,14 +51,18 @@ if (new Date() > end) {
 
     /* ================= 15 MIN EARLY START ================= */
     const startTime = new Date(booking.startTime);
-  
-  // const allowTime = new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
+  // const allowTime = new Date(startTime.getTime() - 15 * 60 * 1000);
 
-const allowTime = new Date(startTime.getTime() - 7 * 24 * 60 * 60 * 1000);
+    // // 24hr
+  
+  const allowTime = new Date(startTime.getTime() - 48 * 60 * 60 * 1000);
+
+
+
 
     if (now < allowTime) {
       return NextResponse.json(
-        { error: "You can start 15 minutes before session time" },
+        { error: "You can start 48 hours before session time" },
         { status: 400 }
       );
     }
@@ -83,6 +87,7 @@ const allowTime = new Date(startTime.getTime() - 7 * 24 * 60 * 60 * 1000);
           BookingStatus.REQUESTED,
           BookingStatus.REJECTED,
           BookingStatus.EXPIRED,
+           BookingStatus.CANCELLED,
         ],
       },
     },
@@ -100,10 +105,14 @@ const allowTime = new Date(startTime.getTime() - 7 * 24 * 60 * 60 * 1000);
     );
   }
 
+// const hasPaidStudent = groupBookings.some(
+//   (b) =>
+//     b.paymentStatus === "FULLY_PAID" ||
+//     b.paymentStatus === "PARTIALLY_PAID"
+// );
+
 const hasPaidStudent = groupBookings.some(
-  (b) =>
-    b.paymentStatus === "FULLY_PAID" ||
-    b.paymentStatus === "PARTIALLY_PAID"
+  (b) => b.paymentStatus === "FULLY_PAID"
 );
 
  if (!hasPaidStudent) {

@@ -190,21 +190,26 @@ export async function GET() {
         id: true,
         startTime: true,
         durationMin: true,
+         status: true, 
       },
     });
 
-    for (const b of bookingsForExpire) {
-      const start = new Date(b.startTime);
-      const duration = b.durationMin ?? 120;
-      const end = new Date(start.getTime() + duration * 60 * 1000);
+   for (const b of bookingsForExpire) {
+  const start = new Date(b.startTime);
+  const duration = b.durationMin ?? 120;
+  const end = new Date(start.getTime() + duration * 60 * 1000);
 
-      if (now > end) {
-        await prisma.booking.update({
-          where: { id: b.id },
-          data: { status: BookingStatus.EXPIRED },
-        });
-      }
-    }
+  if (now > end) {
+
+    // 🔒 DO NOT expire completed sessions
+    if (b.status === BookingStatus.COMPLETED) continue;
+
+    await prisma.booking.update({
+      where: { id: b.id },
+      data: { status: BookingStatus.EXPIRED },
+    });
+  }
+}
 
     /* ================= MARK REQUESTS AS SEEN ================= */
     await prisma.booking.updateMany({

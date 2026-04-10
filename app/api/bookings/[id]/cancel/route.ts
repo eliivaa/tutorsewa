@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { CancelledBy } from "@prisma/client";
-
 import {
   BookingPaymentStatus,
   BookingStatus,
+  CancelledBy,
+  PaymentStatus,
   RefundStatus,
 } from "@prisma/client";
 
 const EARLY_CANCEL_HOURS = 12;
 
 /* =========================
-HELPERS
+   HELPERS
 ========================= */
 
 function getPaidAmount(booking: {
@@ -21,8 +21,11 @@ function getPaidAmount(booking: {
   totalAmount: number;
 }) {
   if (booking.paymentStatus === "FULLY_PAID") return booking.totalAmount;
-  if (booking.paymentStatus === "PARTIALLY_PAID")
+
+  if (booking.paymentStatus === "PARTIALLY_PAID") {
     return Math.floor(booking.totalAmount / 2);
+  }
+
   return 0;
 }
 
@@ -36,7 +39,6 @@ function calculateRefund(booking: {
 
   const paidAmount = getPaidAmount(booking);
 
-  // ❌ no refund if session started or nothing paid
   if (now >= start || paidAmount <= 0) {
     return {
       refundAmount: 0,
@@ -48,7 +50,6 @@ function calculateRefund(booking: {
   const diffHours =
     (start.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-  // ✅ EARLY CANCEL → 100% refund
   if (diffHours >= EARLY_CANCEL_HOURS) {
     return {
       refundAmount: paidAmount,
@@ -57,7 +58,6 @@ function calculateRefund(booking: {
     };
   }
 
-  // ⚠️ LATE CANCEL → 50/50 split
   const tutorCompensation = Math.ceil(paidAmount * 0.5);
   const refundAmount = paidAmount - tutorCompensation;
 
@@ -72,7 +72,7 @@ function calculateRefund(booking: {
 }
 
 /* =========================
-API
+   API
 ========================= */
 
 export async function PATCH(
@@ -83,7 +83,10 @@ export async function PATCH(
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const booking = await prisma.booking.findUnique({
@@ -125,22 +128,32 @@ export async function PATCH(
       );
     }
 
-    if (new Date() >= new Date(booking.startTime)) {
-      return NextResponse.json(
-        { error: "Session already started" },
-        { status: 400 }
-      );
-    }
+   const now = new Date();
+const start = new Date(booking.startTime);
+
+// DURING CLASS → treat as COMPLETED (NO REFUND)
+if (now >= start) {
+  await prisma.booking.update({
+    where: { id: booking.id },
+    data: {
+      status: BookingStatus.COMPLETED,
+      cancelReason: "The session had already started, so it was marked as completed. No refund is available.",
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    message: "Session treated as completed (no refund)",
+  });
+}
 
     const { refundAmount, tutorCompensation, refundStatus } =
       calculateRefund(booking);
 
-    /* =========================
-       TRANSACTION
-    ========================= */
-
     await prisma.$transaction(async (tx) => {
-      // 1️⃣ Update booking
+      /* =========================
+         1. UPDATE BOOKING
+      ========================= */
       await tx.booking.update({
         where: { id: booking.id },
         data: {
@@ -149,15 +162,21 @@ export async function PATCH(
           refundAmount,
           refundStatus,
           refundedAt:
-            refundStatus === RefundStatus.CREDITED ? new Date() : null,
+            refundStatus === RefundStatus.CREDITED
+              ? new Date()
+              : null,
           cancelReason:
-            refundAmount > 0
-              ? "Student cancelled. Refund credited."
-              : "Student cancelled. No refund.",
+            tutorCompensation > 0
+              ? "Student cancelled late. Partial refund + tutor compensation applied."
+              : refundAmount > 0
+              ? "Student cancelled early. Full refund applied."
+              : "No refund.",
         },
       });
 
-      // 2️⃣ Refund to student wallet
+      /* =========================
+         2. REFUND STUDENT
+      ========================= */
       if (refundAmount > 0) {
         await tx.user.update({
           where: { id: booking.studentId },
@@ -179,16 +198,18 @@ export async function PATCH(
         });
       }
 
-      // 3️⃣ Tutor compensation (safe)
+      /* =========================
+         3. TUTOR COMPENSATION
+      ========================= */
       if (tutorCompensation > 0) {
-        const existing = await tx.tutorEarning.findFirst({
+        const existingComp = await tx.tutorEarning.findFirst({
           where: {
             bookingId: booking.id,
             type: "COMPENSATION",
           },
         });
 
-        if (!existing) {
+        if (!existingComp) {
           await tx.tutorEarning.create({
             data: {
               tutorId: booking.tutorId,
@@ -198,15 +219,63 @@ export async function PATCH(
             },
           });
         }
+
+        /* =========================
+           4. CREDIT TUTOR WALLET (SAFE)
+        ========================= */
+        const existingWallet = await tx.tutorWalletTransaction.findFirst({
+          where: {
+            bookingId: booking.id,
+            reason: "LATE_CANCEL_COMPENSATION",
+          },
+        });
+
+        if (!existingWallet) {
+          await tx.tutorWalletTransaction.create({
+            data: {
+              tutorId: booking.tutorId,
+              amount: tutorCompensation,
+              type: "CREDIT",
+              reason: "LATE_CANCEL_COMPENSATION",
+              bookingId: booking.id,
+            },
+          });
+
+          await tx.tutor.update({
+            where: { id: booking.tutorId },
+            data: {
+              walletBalance: {
+                increment: tutorCompensation,
+              },
+            },
+          });
+        }
       }
 
-      // 4️⃣ 🔥 Sync payment (CRITICAL)
+      /* =========================
+         5. MARK PAYMENT REFUNDED
+      ========================= */
       await tx.payment.updateMany({
         where: { bookingId: booking.id },
         data: {
-          status: "REFUNDED", // make sure enum exists
-          tutorPaid: tutorCompensation > 0,
-          tutorPaidAt: tutorCompensation > 0 ? new Date() : null,
+          status: PaymentStatus.REFUNDED,
+        },
+      });
+
+      /* =========================
+         6. NOTIFICATION
+      ========================= */
+      await tx.notification.create({
+        data: {
+          tutorId: booking.tutorId,
+          bookingId: booking.id,
+          title: "Session Cancelled",
+          message:
+            tutorCompensation > 0
+              ? "Late cancellation: compensation credited to your wallet."
+              : "Session cancelled by student.",
+          type: "SESSION_CANCELLED",
+          actionUrl: "/tutor/bookings",
         },
       });
     });
@@ -215,11 +284,10 @@ export async function PATCH(
       success: true,
       refundAmount,
       tutorCompensation,
-      message: "Booking cancelled successfully",
     });
 
   } catch (err) {
-    console.error("CANCEL BOOKING ERROR:", err);
+    console.error("CANCEL ERROR:", err);
 
     return NextResponse.json(
       { error: "Failed to cancel booking" },

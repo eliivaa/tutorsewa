@@ -151,6 +151,7 @@ export async function PATCH(
     const tutor = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
 
     const { action } = await req.json();
+    console.log("ACTION RECEIVED:", action);
 
     if (!["ACCEPT", "REJECT"].includes(action)) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -160,6 +161,10 @@ export async function PATCH(
     const booking = await prisma.booking.findUnique({
       where: { id: params.id },
     });
+    console.log("BOOKING FOUND:", booking?.id);
+console.log("BOOKING STATUS:", booking?.status);
+console.log("TUTOR ID:", tutor.id);
+console.log("BOOKING TUTOR ID:", booking?.tutorId);
 
     if (!booking || booking.tutorId !== tutor.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -191,15 +196,26 @@ export async function PATCH(
       }
 
       // 🚫 Prevent overbooking (GROUP)
-      if (
-        availability.maxStudents &&
-        availability.currentCount >= availability.maxStudents
-      ) {
-        return NextResponse.json(
-          { error: "Slot already full" },
-          { status: 400 }
-        );
-      }
+    // 🚫 Prevent overbooking (GROUP) — FIXED LOGIC
+const acceptedCount = await prisma.booking.count({
+  where: {
+    availabilityId: booking.availabilityId,
+    status: {
+      in: ["PAYMENT_PENDING", "READY", "COMPLETED"],
+    },
+  },
+});
+
+if (
+  availability.maxStudents &&
+  acceptedCount >= availability.maxStudents
+) {
+  return NextResponse.json(
+    { error: "Slot already full" },
+    { status: 400 }
+  );
+}
+
 
       /* ===== UPDATE BOOKING ===== */
       const updated = await prisma.booking.update({
@@ -239,7 +255,7 @@ export async function PATCH(
           title: "Booking Accepted",
           message: "Your booking has been accepted. Please complete payment.",
           type: NotificationType.BOOKING_ACCEPTED,
-          actionUrl: "/dashboard/sessions",
+          actionUrl: "/dashboard/payments",
         },
       });
 
