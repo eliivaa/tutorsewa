@@ -12,18 +12,26 @@ type Row = {
   paidAmount: number;
   remainingAmount: number;
   paymentStatus: string;
+    cancelledBy?: string | null;
 };
 
 export default function AdminPaymentsPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/admin/payments")
-      .then((res) => res.json())
-      .then((data) => setRows(data.rows || []))
-      .finally(() => setLoading(false));
-  }, []);
+const [currentPage, setCurrentPage] = useState(1);
+const rowsPerPage = 13; 
+
+ useEffect(() => {
+  fetch("/api/admin/payments")
+    .then((res) => res.json())
+    .then((data) => {
+      setRows(data.rows || []);
+      setCurrentPage(1); 
+    })
+    .finally(() => setLoading(false));
+}, []);
+
 
   if (loading) {
     return (
@@ -32,6 +40,14 @@ export default function AdminPaymentsPage() {
       </p>
     );
   }
+  const totalRows = rows.length;
+const totalPages = Math.ceil(totalRows / rowsPerPage);
+
+const startIndex = (currentPage - 1) * rowsPerPage;
+const paginatedRows = rows.slice(
+  startIndex,
+  startIndex + rowsPerPage
+);
 
   return (
     <div className="space-y-6 text-[#004B4B]">
@@ -46,6 +62,8 @@ export default function AdminPaymentsPage() {
 
       {/* TABLE */}
       <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
+
+        
         <table className="w-full text-sm">
           <thead className="bg-[#F2EFE7]">
             <tr>
@@ -61,7 +79,7 @@ export default function AdminPaymentsPage() {
           </thead>
 
           <tbody>
-            {rows.map((r) => (
+            {paginatedRows.map((r) => (
               <tr key={r.id} className="border-t hover:bg-gray-50">
                 <td className="px-6 py-3">{r.student}</td>
                 <td className="px-6 py-3">{r.tutor}</td>
@@ -75,25 +93,68 @@ export default function AdminPaymentsPage() {
                 <td className="px-6 py-3 text-green-700">
                   NPR {r.paidAmount}
                 </td>
-                <td className="px-6 py-3 text-red-600">
-                  NPR {r.remainingAmount}
-                </td>
+               <td className="px-6 py-3 text-red-600">
+  {r.paymentStatus === "REFUNDED"
+    ? "-"
+    : `NPR ${r.remainingAmount}`}
+</td>
                 <td className="px-6 py-3">
-                  <StatusBadge status={r.paymentStatus} />
-                </td>
+  <StatusBadge status={r.paymentStatus} />
+
+  {/* ✅ ADD THIS JUST BELOW */}
+  {r.cancelledBy && (
+    <div className="text-xs text-gray-500 mt-1">
+      Cancelled by {r.cancelledBy}
+    </div>
+  )}
+</td>
               </tr>
             ))}
           </tbody>
         </table>
+        
       </div>
+{totalPages > 1 && (
+  <div className="flex justify-between items-center mt-4 text-sm">
+    <button
+      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+      disabled={currentPage === 1}
+      className="px-4 py-2 rounded-full border disabled:opacity-50"
+    >
+      Prev
+    </button>
+
+    <span className="text-gray-600">
+      Page {currentPage} of {totalPages}
+    </span>
+
+    <button
+      onClick={() =>
+        setCurrentPage((p) => Math.min(p + 1, totalPages))
+      }
+      disabled={currentPage === totalPages}
+      className="px-4 py-2 rounded-full border disabled:opacity-50"
+    >
+      Next
+    </button>
+  </div>
+)}
 
     </div>
+    
   );
 }
 
-/* ================= STATUS BADGE ================= */
-
 function StatusBadge({ status }: { status: string }) {
+
+  if (status === "REFUNDED") {
+    return (
+      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+        Refunded
+      </span>
+    );
+  }
+
   if (status === "FULLY_PAID") {
     return (
       <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
@@ -110,6 +171,13 @@ function StatusBadge({ status }: { status: string }) {
     );
   }
 
+  if (status === "REFUNDED") {
+  return (
+    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+      Refunded
+    </span>
+  );
+}
   return (
     <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
       Unpaid

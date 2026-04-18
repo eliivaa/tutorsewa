@@ -6,30 +6,66 @@
 // import jwt from "jsonwebtoken";
 
 // export async function PATCH(req: Request) {
-//   const { notificationId } = await req.json();
+//   try {
+//     const { id } = await req.json();
 
-//   // Try student auth
-//   const session = await getServerSession(authOptions);
-//   if (session?.user?.id) {
-//     await prisma.notification.update({
-//       where: { id: notificationId },
+//     if (!id) {
+//       return NextResponse.json({ error: "Missing id" }, { status: 400 });
+//     }
+
+//     let where: any = { id };
+
+//     /* ================= ROLE CHECK (FIXED ORDER) ================= */
+
+//     // ADMIN FIRST
+//     const adminToken = cookies().get("admin_token")?.value;
+
+//     if (adminToken) {
+//       try {
+//         jwt.verify(adminToken, process.env.JWT_SECRET!);
+//         where.isForAdmin = true;
+//       } catch {
+//         return NextResponse.json({ error: "Invalid admin token" }, { status: 401 });
+//       }
+//     }
+
+//     // TUTOR SECOND
+//     else if (cookies().get("tutor_token")) {
+//       try {
+//         const decoded = jwt.verify(
+//           cookies().get("tutor_token")!.value,
+//           process.env.JWT_SECRET!
+//         ) as { id: string };
+
+//         where.tutorId = decoded.id;
+//       } catch {
+//         return NextResponse.json({ error: "Invalid tutor token" }, { status: 401 });
+//       }
+//     }
+
+//     // STUDENT LAST
+//     else {
+//       const session = await getServerSession(authOptions);
+
+//       if (!session?.user?.id) {
+//         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//       }
+
+//       where.userId = session.user.id;
+//     }
+
+//     /* ================= UPDATE ================= */
+
+//     await prisma.notification.updateMany({
+//       where,
 //       data: { isRead: true },
 //     });
-//     return NextResponse.json({ success: true });
-//   }
 
-//   // Try tutor auth
-//   const token = cookies().get("tutor_token")?.value;
-//   if (token) {
-//     jwt.verify(token, process.env.JWT_SECRET!);
-//     await prisma.notification.update({
-//       where: { id: notificationId },
-//       data: { isRead: true },
-//     });
 //     return NextResponse.json({ success: true });
+//   } catch (err) {
+//     console.error("READ ERROR:", err);
+//     return NextResponse.json({ error: "Failed" }, { status: 500 });
 //   }
-
-//   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 // }
 
 
@@ -42,67 +78,73 @@ import jwt from "jsonwebtoken";
 
 export async function PATCH(req: Request) {
   try {
-    const { notificationId } = await req.json();
+    const { id } = await req.json();
 
-    if (!notificationId) {
+    if (!id) {
       return NextResponse.json(
         { error: "Notification ID required" },
         { status: 400 }
       );
     }
 
-    /* ===========================
-       STUDENT AUTH
-    =========================== */
-    const session = await getServerSession(authOptions);
+    /* ================= AUTH CHECK ================= */
 
-    if (session?.user?.id) {
-      await prisma.notification.update({
-        where: { id: notificationId },
-        data: { isRead: true },
-      });
+    let isAuthorized = false;
 
-      return NextResponse.json({ success: true });
-    }
-
-    /* ===========================
-       TUTOR AUTH
-    =========================== */
-    const tutorToken = cookies().get("tutor_token")?.value;
-
-    if (tutorToken) {
-      jwt.verify(tutorToken, process.env.JWT_SECRET!);
-
-      await prisma.notification.update({
-        where: { id: notificationId },
-        data: { isRead: true },
-      });
-
-      return NextResponse.json({ success: true });
-    }
-
-    /* ===========================
-       ADMIN AUTH
-    =========================== */
+    // ADMIN
     const adminToken = cookies().get("admin_token")?.value;
-
     if (adminToken) {
-      jwt.verify(adminToken, process.env.JWT_SECRET!);
-
-      await prisma.notification.update({
-        where: { id: notificationId },
-        data: { isRead: true },
-      });
-
-      return NextResponse.json({ success: true });
+      try {
+        jwt.verify(adminToken, process.env.JWT_SECRET!);
+        isAuthorized = true;
+      } catch {}
     }
 
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    // TUTOR
+    const tutorToken = cookies().get("tutor_token")?.value;
+    if (!isAuthorized && tutorToken) {
+      try {
+        jwt.verify(tutorToken, process.env.JWT_SECRET!);
+        isAuthorized = true;
+      } catch {}
+    }
+
+    // STUDENT
+    if (!isAuthorized) {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.id) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    /* ================= UPDATE ================= */
+
+    const result = await prisma.notification.updateMany({
+      where: {
+        id, // ✅ ONLY ID (fixes your issue)
+      },
+      data: {
+        isRead: true,
+      },
+    });
+
+    console.log("UPDATED COUNT:", result.count);
+
+    return NextResponse.json({
+      success: true,
+      updated: result.count,
+    });
+
   } catch (err) {
     console.error("NOTIFICATION READ ERROR:", err);
+
     return NextResponse.json(
       { error: "Failed to mark notification as read" },
       { status: 500 }
