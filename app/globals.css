@@ -46,3 +46,32 @@ body {
 .input {
   @apply w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:border-[#006A6A] transition;
 }
+
+
+/* LiveKit UI FIX */
+
+.lk-video-conference {
+  background: #000 !important;
+}
+
+.lk-participant-name {
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+.lk-control-bar {
+  background: rgba(0, 0, 0, 0.7) !important;
+}
+
+.lk-button {
+  color: white !important;
+}
+
+.lk-button svg {
+  color: white !important;
+}
+.lk-control-bar {
+  backdrop-filter: blur(10px);
+  padding: 10px;
+}

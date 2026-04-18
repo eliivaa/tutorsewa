@@ -2,13 +2,14 @@
 
 // import { useState } from "react";
 // import Image from "next/image";
-// import { signIn } from "next-auth/react";
+// import { signIn, signOut } from "next-auth/react";
 // import toast, { Toaster } from "react-hot-toast";
 // import { motion, AnimatePresence } from "framer-motion";
 // import { Eye, EyeOff } from "lucide-react";
 // import VerifyCodeModal from "@/app/components/VerifyCodeModal";
 
 // export default function RegisterPage() {
+
 //   const [form, setForm] = useState({
 //     name: "",
 //     email: "",
@@ -26,15 +27,25 @@
 //   const [agree, setAgree] = useState(false);
 //   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
-//   // ----------------------------
-//   // REAL-TIME VALIDATION HANDLER
-//   // ----------------------------
+//   // GOOGLE LOGIN FIX
+//   const handleGoogleLogin = async () => {
+//     await signOut({ redirect: false });
+
+//     await signIn(
+//       "google",
+//       { callbackUrl: "/dashboard" },
+//       { prompt: "select_account" }
+//     );
+//   };
+
+//   // VALIDATION
 //   const validateField = (name: string, value: string) => {
 //     let msg = "";
 
 //     switch (name) {
 //       case "name":
-//         if (!/^[A-Za-z ]+$/.test(value)) msg = "Name must contain only alphabets.";
+//         if (!/^[A-Za-z ]+$/.test(value))
+//           msg = "Name must contain only alphabets.";
 //         break;
 
 //       case "email":
@@ -42,27 +53,32 @@
 //           msg = "Invalid email format.";
 //         break;
 
-//      case "phone":
-//   const nepalPhoneRegex =
-//     /^(984|985|986|974|975|980|981|982|970|961|962)[0-9]{7}$/;
+//       case "phone":
+//         const nepalPhoneRegex =
+//           /^(984|985|986|974|975|980|981|982|970|961|962)[0-9]{7}$/;
 
-//   if (!/^\d+$/.test(value)) msg = "Phone must contain digits only.";
-//   else if (value.length !== 10) msg = "Phone number must be exactly 10 digits.";
-//   else if (!nepalPhoneRegex.test(value))
-//     msg = "Enter a valid Nepal mobile number (NTC / Ncell / Smart).";
-//   break;
+//         if (!/^\d+$/.test(value))
+//           msg = "Phone must contain digits only.";
+//         else if (value.length !== 10)
+//           msg = "Phone number must be exactly 10 digits.";
+//         else if (!nepalPhoneRegex.test(value))
+//           msg = "Enter a valid Nepal mobile number (NTC / Ncell / Smart).";
+//         break;
 
 //       case "password":
-//         if (value.length < 8) msg = "At least 8 characters required.";
-//         // else if (!/[A-Z]/.test(value)) msg = "One uppercase letter required.";
-//         else if (!/[a-z]/.test(value)) msg = "One lowercase letter required.";
-//         else if (!/[0-9]/.test(value)) msg = "One number required.";
+//         if (value.length < 8)
+//           msg = "At least 8 characters required.";
+//         else if (!/[a-z]/.test(value))
+//           msg = "One lowercase letter required.";
+//         else if (!/[0-9]/.test(value))
+//           msg = "One number required.";
 //         else if (!/[!@#$%^&*]/.test(value))
 //           msg = "One special character required (!@#$%^&*)";
 //         break;
 
 //       case "confirmPassword":
-//         if (value !== form.password) msg = "Passwords do not match.";
+//         if (value !== form.password)
+//           msg = "Passwords do not match.";
 //         break;
 //     }
 
@@ -75,9 +91,6 @@
 //     validateField(name, value);
 //   };
 
-//   // ----------------------------
-//   // SUBMIT HANDLER
-//   // ----------------------------
 //   const handleSubmit = async (e: React.FormEvent) => {
 //     e.preventDefault();
 
@@ -86,7 +99,6 @@
 //       return;
 //     }
 
-//     // check for any existing errors
 //     for (let key in errors) {
 //       if (errors[key]) {
 //         toast.error("Fix the highlighted errors first.");
@@ -123,15 +135,17 @@
 
 //         {/* LEFT SIDE */}
 //         <div className="flex-1 p-8">
-//           <h3 className="text-[#48A6A7] font-semibold">Join TutorSewa!</h3>
+//           <h3 className="text-[#48A6A7] font-semibold">
+//             Join TutorSewa!
+//           </h3>
+
 //           <h1 className="text-2xl font-bold text-[#006A6A] mb-6">
 //             Create Your Account
 //           </h1>
 
-//           {/* FORM */}
 //           <form onSubmit={handleSubmit} className="space-y-4">
 
-//             {/* FULL NAME */}
+//             {/* NAME */}
 //             <div>
 //               <input
 //                 name="name"
@@ -144,7 +158,9 @@
 //                 required
 //               />
 //               {errors.name && (
-//                 <p className="text-xs text-red-500">{errors.name}</p>
+//                 <p className="text-xs text-red-500">
+//                   {errors.name}
+//                 </p>
 //               )}
 //             </div>
 
@@ -161,11 +177,13 @@
 //                 required
 //               />
 //               {errors.email && (
-//                 <p className="text-xs text-red-500">{errors.email}</p>
+//                 <p className="text-xs text-red-500">
+//                   {errors.email}
+//                 </p>
 //               )}
 //             </div>
 
-//             {/* PASSWORD WITH TOGGLE */}
+//             {/* PASSWORD */}
 //             <div className="relative">
 //               <input
 //                 name="password"
@@ -182,11 +200,17 @@
 //                 onClick={() => setShowPassword(!showPassword)}
 //                 className="absolute right-3 top-3 cursor-pointer text-gray-500"
 //               >
-//                 {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+//                 {showPassword ? (
+//                   <Eye size={18} />
+//                 ) : (
+//                   <EyeOff size={18} />
+//                 )}
 //               </span>
 
 //               {errors.password && (
-//                 <p className="text-xs text-red-500">{errors.password}</p>
+//                 <p className="text-xs text-red-500">
+//                   {errors.password}
+//                 </p>
 //               )}
 //             </div>
 
@@ -207,28 +231,37 @@
 //                 onClick={() => setShowConfirm(!showConfirm)}
 //                 className="absolute right-3 top-3 cursor-pointer text-gray-500"
 //               >
-//                 {showConfirm ? <Eye size={18} /> : <EyeOff size={18} />}
+//                 {showConfirm ? (
+//                   <Eye size={18} />
+//                 ) : (
+//                   <EyeOff size={18} />
+//                 )}
 //               </span>
 
 //               {errors.confirmPassword && (
-//                 <p className="text-xs text-red-500">{errors.confirmPassword}</p>
+//                 <p className="text-xs text-red-500">
+//                   {errors.confirmPassword}
+//                 </p>
 //               )}
 //             </div>
 
 //             {/* PHONE */}
 //             <div>
-//              <input
-//   name="phone"
-//   type="tel"
-//   placeholder="98XXXXXXXX"
-//   maxLength={10}
-//   className={`w-full border rounded-md p-2 ${
-//     errors.phone ? "border-red-500" : ""
-//   }`}
-//   onChange={handleChange}
-// />
+//               <input
+//                 name="phone"
+//                 type="tel"
+//                 placeholder="98XXXXXXXX"
+//                 maxLength={10}
+//                 className={`w-full border rounded-md p-2 ${
+//                   errors.phone ? "border-red-500" : ""
+//                 }`}
+//                 onChange={handleChange}
+//               />
+
 //               {errors.phone && (
-//                 <p className="text-xs text-red-500">{errors.phone}</p>
+//                 <p className="text-xs text-red-500">
+//                   {errors.phone}
+//                 </p>
 //               )}
 //             </div>
 
@@ -249,9 +282,13 @@
 //                 onChange={() => setAgree(!agree)}
 //                 className="accent-[#006A6A]"
 //               />
+
 //               <label className="text-gray-700">
 //                 I accept the{" "}
-//                 <a href="/terms" className="text-[#006A6A] underline">
+//                 <a
+//                   href="/terms"
+//                   className="text-[#006A6A] underline"
+//                 >
 //                   Terms and Conditions
 //                 </a>
 //               </label>
@@ -267,31 +304,33 @@
 //             </button>
 //           </form>
 
-//         <p className="text-sm text-center mt-3">
-//   Already have an account?{" "}
-//   <a
-//     href="/login"
-//     className="text-[#006A6A] font-medium hover:underline"
-//   >
-//     Login
-//   </a>
-// </p>
+//           <p className="text-sm text-center mt-3">
+//             Already have an account?{" "}
+//             <a
+//               href="/login"
+//               className="text-[#006A6A] font-medium hover:underline"
+//             >
+//               Login
+//             </a>
+//           </p>
+
 //           {/* GOOGLE LOGIN */}
 //           <button
 //             type="button"
-//             onClick={() => signIn(
-//   "google",
-//   { callbackUrl: "/dashboard" },
-//   { prompt: "select_account" }
-// )}
+//             onClick={handleGoogleLogin}
 //             className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2 hover:bg-gray-50 transition"
 //           >
-//             <Image src="/google.svg" alt="Google" width={20} height={20} />
+//             <Image
+//               src="/google.svg"
+//               alt="Google"
+//               width={20}
+//               height={20}
+//             />
 //             Google
 //           </button>
 //         </div>
 
-//         {/* RIGHT SIDE IMAGE PANEL */}
+//         {/* RIGHT SIDE IMAGE */}
 //         <div className="hidden md:flex flex-col justify-center bg-[#48A6A7]/20 w-1/2 p-8 text-[#004B4B]">
 //           <Image
 //             src="/online-class.jpg"
@@ -300,9 +339,11 @@
 //             height={180}
 //             className="rounded-md mx-auto mb-4"
 //           />
+
 //           <h4 className="font-semibold text-[#006A6A] text-center">
 //             Start Your Learning Journey
 //           </h4>
+
 //           <ul className="text-sm mt-3 space-y-1 mx-auto">
 //             <li>✅ Access to 500+ expert tutors</li>
 //             <li>✅ Flexible scheduling</li>
@@ -311,24 +352,25 @@
 //         </div>
 //       </div>
 
-//       {/* EMAIL VERIFICATION MODAL */}
-//      <AnimatePresence>
-//   {showVerifyModal && (
-//     <motion.div
-//       initial={{ opacity: 0 }}
-//       animate={{ opacity: 1 }}
-//       exit={{ opacity: 0 }}
-//       className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-//     >
-//       <VerifyCodeModal email={form.email} />
-//     </motion.div>
-//   )}
-// </AnimatePresence>
+//       {/* VERIFY MODAL */}
+//       <AnimatePresence>
+//         {showVerifyModal && (
+//           <motion.div
+//             initial={{ opacity: 0 }}
+//             animate={{ opacity: 1 }}
+//             exit={{ opacity: 0 }}
+//             className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+//           >
+//             <VerifyCodeModal email={form.email} />
+//           </motion.div>
+//         )}
+//       </AnimatePresence>
 //     </div>
 //   );
 // }
 
 
+// new
 
 "use client";
 
@@ -358,16 +400,20 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [agree, setAgree] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState("");
 
   // GOOGLE LOGIN FIX
   const handleGoogleLogin = async () => {
     await signOut({ redirect: false });
 
-    await signIn(
-      "google",
-      { callbackUrl: "/dashboard" },
-      { prompt: "select_account" }
-    );
+   await signIn(
+  "google",
+  {
+    callbackUrl: "/dashboard",
+    role: "student"
+  },
+  { prompt: "select_account" }
+);
   };
 
   // VALIDATION
@@ -455,7 +501,9 @@ export default function RegisterPage() {
     }
 
     toast.success("Account created! Please verify your email.");
-    setShowVerifyModal(true);
+
+setVerifyEmail(form.email);
+setShowVerifyModal(true);
   };
 
   return (
@@ -693,7 +741,7 @@ export default function RegisterPage() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
           >
-            <VerifyCodeModal email={form.email} />
+           <VerifyCodeModal email={verifyEmail} />
           </motion.div>
         )}
       </AnimatePresence>

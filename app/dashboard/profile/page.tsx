@@ -478,7 +478,7 @@ export default function ProfilePage() {
           <>
             <input
               className="border p-2 w-full rounded"
-              placeholder="Enter First and Last Name)"
+              placeholder="Enter First and Last Name )"
               value={form.name}
               onChange={(e) =>
                 setForm({ ...form, name: e.target.value })

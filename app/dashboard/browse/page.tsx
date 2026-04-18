@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -29,6 +27,7 @@ export default function BrowseTutors() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [priceFilter, setPriceFilter] = useState<string>("ALL");
 
   /* ======================
      FETCH TUTORS
@@ -54,36 +53,64 @@ export default function BrowseTutors() {
   }, []);
 
   /* ======================
-     SEARCH FILTER
+     SEARCH + PRICE FILTER
   ====================== */
   useEffect(() => {
     let list = [...tutors];
 
+    /* ===== SEARCH ===== */
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((t) => {
         const nameMatch = t.name.toLowerCase().includes(q);
-        const subjectMatch = t.subjects.some((s) =>
+        const subjectMatch = (t.subjects ?? []).some((s) =>
           s.split("|")[0].toLowerCase().includes(q)
         );
         return nameMatch || subjectMatch;
       });
     }
 
-    setFiltered(list);
-  }, [search, tutors]);
+    /* ===== PRICE FILTER ===== */
+    if (priceFilter !== "ALL") {
+      list = list.filter((t) => {
+        const rate = t.rate ?? 0;
 
+        switch (priceFilter) {
+          case "100-500":
+            return rate >= 100 && rate <= 500;
+          case "500-1000":
+            return rate > 500 && rate <= 1000;
+          case "1000-1200":
+            return rate > 1000 && rate <= 1200;
+          case "1200+":
+            return rate > 1200;
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFiltered(list);
+  }, [search, priceFilter, tutors]);
+
+  /* ======================
+     STATES
+  ====================== */
   if (loading) return <p className="p-6 text-[#004B4B]">Loading tutors...</p>;
   if (error) return <p className="p-6 text-red-600">{error}</p>;
 
   return (
-    <div className="max-w-6xl mx-auto px-6 pb-10">
+    <div className="px-6 pb-10">
       <h1 className="text-2xl font-bold text-[#004B4B] mb-6">
         Browse Tutors
       </h1>
 
-      {/* SEARCH */}
-      <div className="flex mb-6">
+      {/* ======================
+          SEARCH + FILTER
+      ====================== */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        
+        {/* SEARCH */}
         <div className="flex items-center gap-2 w-full max-w-md bg-white border rounded-lg px-4 py-2 shadow-sm">
           <Search size={18} className="text-gray-500" />
           <input
@@ -94,7 +121,30 @@ export default function BrowseTutors() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-      </div>
+
+       {/* PRICE FILTER CHIPS */}
+
+  {[
+    { label: "All", value: "ALL" },
+    { label: "Rs 100 - 500", value: "100-500" },
+    { label: "Rs 500 - 1000", value: "500-1000" },
+    { label: "Rs 1000 - 1200", value: "1000-1200" },
+    { label: "Rs 1200+", value: "1200+" },
+  ].map((item) => (
+    <button
+      key={item.value}
+      onClick={() => setPriceFilter(item.value)}
+      className={`px-3 py-1.5 text-sm rounded-full border transition 
+        ${
+          priceFilter === item.value
+            ? "bg-[#4CB6B6] text-white border-[#4CB6B6]"
+            : "bg-white text-gray-600 hover:border-[#4CB6B6]"
+        }`}
+    >
+      {item.label}
+    </button>
+  ))}
+</div>
 
       {/* EMPTY */}
       {filtered.length === 0 && (
@@ -131,7 +181,10 @@ export default function BrowseTutors() {
                   </h2>
 
                   <p className="text-xs text-gray-500">
-                    {tutor.subjects.map((s) => s.split("|")[0]).join(", ")}
+                    {(tutor.subjects ?? [])
+                      .filter((s) => typeof s === "string")
+                      .map((s: string) => s.split("|")[0])
+                      .join(", ") || "No subjects"}
                   </p>
 
                   <p className="text-xs text-yellow-600 mt-1">

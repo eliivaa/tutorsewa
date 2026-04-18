@@ -145,6 +145,8 @@
 //   }
 // }
 
+
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -227,11 +229,9 @@ export async function PATCH(
        VALIDATIONS
     ========================= */
 
-    if (
-      booking.status === BookingStatus.CANCELLED ||
-      booking.status === BookingStatus.COMPLETED ||
-      booking.status === BookingStatus.EXPIRED
-    ) {
+  if (
+  ["CANCELLED", "COMPLETED", "EXPIRED"].includes(booking.status)
+) {
       return NextResponse.json(
         { error: "Cannot cancel this booking" },
         { status: 400 }
@@ -252,7 +252,7 @@ export async function PATCH(
     ========================= */
 
     await prisma.$transaction(async (tx) => {
-      // 1️⃣ Cancel booking
+      // Cancel booking
       await tx.booking.update({
         where: { id: booking.id },
         data: {
@@ -264,35 +264,42 @@ export async function PATCH(
               ? RefundStatus.CREDITED
               : RefundStatus.NOT_ELIGIBLE,
           refundedAt: paidAmount > 0 ? new Date() : null,
-          cancelReason: "Tutor cancelled session",
+          cancelReason:
+  paidAmount > 0
+    ? "Tutor cancelled session. Full refund issued."
+    : "Tutor cancelled session before any payment.",
         },
       });
 
-      // 2️⃣ Refund student (100%)
-      if (paidAmount > 0) {
-        // update wallet balance
-        await tx.user.update({
-          where: { id: booking.studentId },
-          data: {
-            walletBalance: {
-              increment: paidAmount,
-            },
-          },
-        });
+   // Refund student (SAFE - prevent double refund)
+const alreadyRefunded = await tx.walletTransaction.findFirst({
+  where: {
+    bookingId: booking.id,
+    reason: "BOOKING_REFUND_TUTOR_CANCEL",
+  },
+});
 
-        // create wallet transaction (ONLY ONCE)
-        await tx.walletTransaction.create({
-          data: {
-            userId: booking.studentId,
-            amount: paidAmount,
-            type: "CREDIT",
-            reason: "BOOKING_REFUND_TUTOR_CANCEL",
-            bookingId: booking.id,
-          },
-        });
-      }
+if (!alreadyRefunded && paidAmount > 0) {
+  await tx.user.update({
+    where: { id: booking.studentId },
+    data: {
+      walletBalance: {
+        increment: paidAmount,
+      },
+    },
+  });
 
-      // 3️⃣ Sync payment (IMPORTANT)
+  await tx.walletTransaction.create({
+    data: {
+      userId: booking.studentId,
+      amount: paidAmount,
+      type: "CREDIT",
+      reason: "BOOKING_REFUND_TUTOR_CANCEL",
+      bookingId: booking.id,
+    },
+  });
+}
+      // 3️ Sync payment (IMPORTANT)
       await tx.payment.updateMany({
         where: { bookingId: booking.id },
         data: {
@@ -301,12 +308,28 @@ export async function PATCH(
         },
       });
 
+      await tx.notification.create({
+  data: {
+    isForAdmin: true,
+    title: "Session Cancelled",
+   message: `Booking ${booking.id} was cancelled by tutor`,
+    type: "SESSION_CANCELLED",
+    bookingId: booking.id,
+  },
+});
+
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Session cancelled. Full refund has been credited to the student.",
-    });
+   const message =
+  paidAmount > 0
+    ? "Session cancelled. Full refund has been credited to the student."
+    : "Session cancelled. No payment was made.";
+
+return NextResponse.json({
+  success: true,
+  refundAmount: paidAmount,
+  message,
+});
 
   } catch (err) {
     console.error("TUTOR CANCEL ERROR:", err);

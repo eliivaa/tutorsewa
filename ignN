@@ -1,0 +1,55 @@
+* [33mf26f70a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Enhance booking lifecycle (video call)
+* [33meb9967c[m Add admin tutor status update witb reason
+* [33m7e3912f[m Update tutor email verification
+* [33m266a8a3[m Update core auth utilities and project configuration
+* [33m5e1f68f[m Update registration and profile completion flow
+* [33md7318ed[m Improve landing page UI and navigation components
+* [33m2ffda7b[m Update tutor review system APIs
+* [33mb497e32[m Update tutor panel pages
+* [33m914e516[m Improve dashboard, profile, and authentication flows
+* [33m34bfdc9[m Enhance thrift marketplace (items, delete, sold, chat)
+* [33m49edff7[m Enhance messaging system (read, unread, start, can-chat, tutor sync)
+* [33mfb1f09f[m Add/Updated real-time messaging and conversations system
+* [33m07a9dad[m Add messaging system
+* [33m7ef88e9[m Update admin tutor management
+* [33m009f978[m Update admin student management
+* [33m5bf5b64[m Add tutor earnings API and panel
+* [33m7034272[m Add tutor profile image upload
+* [33mea2ec40[m Add live session and Jitsi integration
+* [33mc802940[m Enhance booking status lifecycle
+* [33mc7ec583[m Add notifications system
+* [33m11c2bd1[m session completion support
+* [33m8efc75b[m Add tutor session / meeting APIs (start, meeting, complete)
+* [33m660160a[m Add admin payments management
+* [33m4ef3339[m Add Esewa payment initiation and verification APIs and updated pages
+* [33m6c85cfa[m Add admin student management page
+* [33m9a097d8[m Add dashboard payments UI
+* [33mdaf19be[m Add dashboard payments UI
+* [33m6daaced[m Add Esewa payments with commission and booking payment status
+* [33mbccacbd[m Updated auth and profile completion flow for users and tutors
+* [33mb4c0a85[m Add forgot and reset password functionality
+* [33m10e7b6a[m Add calendar-based tutor availability
+* [33m68f5740[m Add tutor availability and booking system
+* [33m5d0d2fd[m Add user profile update and avatar upload functionality
+* [33m00eb8c2[m Update dashboard browse and cloudinary integration
+* [33m49bf38e[m Add tutor auth and panel
+* [33mcefd52d[m Admin tutor approval and status update
+* [33m6f2c59b[m Tutor public profile page and API
+* [33m815e3c1[m View tutor profile frontent/Api created
+* [33mee4886d[m Admin authentication
+* [33m5a910a7[m Update auth, profile, prisma schema
+* [33m9e1e536[m Browse tutor page modified and updated
+* [33mb9077b0[m Authentication-Modified and updated
+* [33m78bf441[m browse page frontend
+* [33m608a8a8[m Tutor login/register function
+* [33m6d36ab3[m UpdatedCode
+* [33mdf9af66[m ThriftSection Functionable
+* [33m80de96f[m Code updated
+* [33m782913d[m Thrift page frontend
+* [33me46efa2[m Edit/Add photo
+* [33mba402f2[m Setup: Added providers file and new assets
+* [33me1752d2[m Setup: Prisma migrations, schema updates, and configuration fixes
+* [33m5b6997c[m Feature: added email verification modal
+* [33m077d3de[m UI Update/Enhancement
+* [33m7f00baf[m Auth Update: improved register/login
+* [33m9a2b843[m First Commit

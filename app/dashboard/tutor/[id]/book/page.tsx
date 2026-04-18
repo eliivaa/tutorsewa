@@ -78,8 +78,12 @@ const tutorId = params?.id ?? "";
 
     // auto-pick first subject
     const subjects = Array.from(
-      new Set((data.slots || []).map((s: AvailabilitySlot) => s.subject))
-    );
+  new Set(
+    (data.slots || []).map(
+      (s: AvailabilitySlot) => `${s.subject}|${s.level || ""}`
+    )
+  )
+);
    setSubject((subjects[0] || null) as string | null);
 
   }
@@ -92,13 +96,20 @@ const tutorId = params?.id ?? "";
      SUBJECT FILTER
   ====================== */
 
-  const subjects = useMemo(() => {
-    return Array.from(new Set(slots.map((s) => s.subject)));
-  }, [slots]);
-
-  const subjectSlots = slots.filter(
-    (s) => !subject || s.subject === subject
+const subjects = useMemo(() => {
+  return Array.from(
+    new Set(
+      slots.map((s) => `${s.subject}|${s.level || ""}`)
+    )
   );
+}, [slots]);
+
+const subjectSlots = slots.filter((s) => {
+  if (!subject) return true;
+
+  const combined = `${s.subject}|${s.level || ""}`;
+  return combined === subject;
+});
 
   /* ======================
      GROUP BY DATE
@@ -202,7 +213,10 @@ const tutorId = params?.id ?? "";
                     : "hover:bg-[#E6F9F5]"
                 }`}
               >
-                {s}
+                {(() => {
+  const [sub, lvl] = s.split("|");
+  return lvl ? `${sub} (${lvl})` : sub;
+})()}
               </button>
             ))}
           </div>
@@ -253,12 +267,11 @@ const tutorId = params?.id ?? "";
                     : "hover:bg-[#E6F9F5]"
                 }`}
               >
-                {slot.startTime} – {slot.endTime}
-                {slot.level && (
-                  <span className="ml-1 text-xs opacity-80">
-                    ({slot.level})
-                  </span>
-                )}
+              {slot.startTime} – {slot.endTime}
+<span className="ml-1 text-xs opacity-70">
+  ({slot.durationMin} min)
+</span>
+                
               </button>
             ))}
           </div>

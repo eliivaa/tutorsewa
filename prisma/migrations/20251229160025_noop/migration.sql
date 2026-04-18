@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "TutorAvailability_tutorId_dayOfWeek_startTime_endTime_sessionTy" RENAME TO "TutorAvailability_tutorId_dayOfWeek_startTime_endTime_sessi_key";

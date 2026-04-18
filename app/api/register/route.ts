@@ -1,23 +1,61 @@
-// after Email
-
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { adminLog } from "@/lib/adminLog";
 
+async function sendVerificationEmail(email: string, name: string, code: string) {
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_SERVER,
+    port: Number(process.env.EMAIL_PORT),
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: "TutorSewa Email Verification Code",
+    html: `
+      <div style="font-family: Arial;">
+        <h2>TutorSewa Verification</h2>
+        <p>Hello ${name || "there"},</p>
+        <p>Your code is:</p>
+        <h1>${code}</h1>
+        <p>This expires in 10 minutes.</p>
+      </div>
+    `,
+  });
+}
+
 export async function POST(req: Request) {
   try {
     const { name, email, password, confirmPassword, phone, grade } =
       await req.json();
 
-    // Validation
-    if (!email || !password || !confirmPassword) {
-      return NextResponse.json(
-        { error: "All fields are required" },
-        { status: 400 }
-      );
-    }
+   // ================= VALIDATION =================
+
+// Normalize email (IMPORTANT)
+const normalizedEmail = email?.trim().toLowerCase();
+
+// Required fields
+if (!name || !normalizedEmail || !password || !confirmPassword || !phone || !grade) {
+  return NextResponse.json(
+    { error: "All fields are required" },
+    { status: 400 }
+  );
+}
+
+// Name validation
+if (name.trim().length < 3) {
+  return NextResponse.json(
+    { error: "Name must be at least 3 characters" },
+    { status: 400 }
+  );
+}
 
     if (password !== confirmPassword) {
       return NextResponse.json(
@@ -34,7 +72,7 @@ export async function POST(req: Request) {
     }
 
    const existingUser = await prisma.user.findUnique({
-  where: { email },
+ where: { email: normalizedEmail },
 });
 
 if (existingUser) {
@@ -52,15 +90,14 @@ if (existingUser) {
   const verifyExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
   await prisma.user.update({
-    where: { email },
+   where: { email: normalizedEmail },
     data: {
       verifyCode,
       verifyExpiry
     }
   });
 
-  // send email again
-  // (same nodemailer code)
+ await sendVerificationEmail(normalizedEmail, name, verifyCode);
 
   return NextResponse.json({
     message: "Verification code resent to your email."
@@ -89,12 +126,13 @@ if (!nepalPhoneRegex.test(phone)) {
     await prisma.user.create({
       data: {
         name,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         phone,
         grade,
         verifyCode,
         verifyExpiry,
+        emailVerified: null,
         authProvider: "CREDENTIALS",
       },
     });
@@ -103,47 +141,13 @@ if (!nepalPhoneRegex.test(phone)) {
     await adminLog(
       "REGISTER",
       "New Student Registered",
-      `${name} (${email}) created an account`,
+      `${name} (${normalizedEmail}) created an account`,
       "SYSTEM_ANNOUNCEMENT",
       "/admin/users"
     );
 
-    // Email transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_SERVER,
-      port: Number(process.env.EMAIL_PORT),
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
 
-    // Email content
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: "TutorSewa Email Verification Code",
-      html: `
-      <div style="font-family: Arial; line-height:1.5; color:#333;">
-        <h2 style="color:#006A6A;">TutorSewa Email Verification</h2>
-
-        <p>Hello ${name || "there"},</p>
-
-        <p>Your verification code is:</p>
-
-        <h1 style="letter-spacing:6px;color:#006A6A;">
-          ${verifyCode}
-        </h1>
-
-        <p>This code will expire in <b>10 minutes</b>.</p>
-
-        <p>If you didn’t create this account, you can safely ignore this email.</p>
-      </div>
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+   await sendVerificationEmail(normalizedEmail, name, verifyCode);
 
     return NextResponse.json({
       message: "Verification code sent to your email.",

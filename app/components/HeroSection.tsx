@@ -1,92 +1,122 @@
-// import Image from 'next/image';
-// import Link from 'next/link';
-// import heroImage from '@/public/Online-Tutoring.png';
+// "use client";
+
+// import Image from "next/image";
+// import Link from "next/link";
+// import dynamic from "next/dynamic";
+// import heroImage from "@/public/Online-Tutoring.png";
+// import animationData from "@/public/Book loading.json";
+
+// const Lottie = dynamic(() => import("lottie-react"), {
+//   ssr: false,
+// });
 
 // export default function HeroSection() {
 //   return (
-//     <section className="flex flex-col md:flex-row justify-between items-center px-12 py-12 bg-[#F6F6F6]">
-//       <div>
-//         <h1 className="text-3xl font-bold text-[#004B4B] mb-6">
-//           Unlock Your Potential <br /> with Expert Tutors!
-//         </h1>
-//         <div className="space-x-4">
-//           <button className="bg-[#006A6A] text-white px-5 py-2 rounded-md hover:bg-[#005454] transition">
-//             Get Started as Student
-//           </button>
+//    <section className="flex flex-col md:flex-row items-center px-20 py-16 bg-[#F6F6F6]">
 
-//           {/* <Link href="/tutor/register"> */}
-//           <Link href="/tutor/auth">
+//   {/* LEFT TEXT */}
+//   <div className="max-w-lg">
+//     <h1 className="text-4xl font-bold text-[#004B4B] mb-6 leading-tight">
+//       Unlock Your Potential <br /> with Expert Tutors!
+//     </h1>
 
-//             <button className="border border-[#006A6A] text-[#006A6A] px-5 py-2 rounded-md hover:bg-[#006A6A] hover:text-white transition">
-//               Become a Tutor
-//             </button>
-//           </Link>
-//         </div>
-//       </div>
-//       <Image src={heroImage} alt="Online Tutoring" className="w-80 md:w-96 mt-8 md:mt-0 rounded-md" />
-//     </section>
+//     <div className="space-x-4">
+//       <Link href="/register">
+//   <button className="bg-[#006A6A] text-white px-6 py-3 rounded-md hover:bg-[#005454] transition">
+//     Get Started as Student
+//   </button>
+// </Link>
+
+//       <Link href="/tutor/auth">
+//         <button className="border border-[#006A6A] text-[#006A6A] px-6 py-3 rounded-md hover:bg-[#006A6A] hover:text-white transition">
+//           Become a Tutor
+//         </button>
+//       </Link>
+//     </div>
+//   </div>
+
+//   {/* SPACER */}
+//   <div className="flex-1" />
+
+//   {/* ANIMATION */}
+//   <div className="hidden md:block mr-8">
+//     <Lottie
+//       animationData={animationData}
+//       loop
+//       className="w-64"
+//     />
+//   </div>
+
+//   {/* IMAGE */}
+//   <div>
+//     <Image
+//       src={heroImage}
+//       alt="Online Tutoring"
+//       className="w-[420px] rounded-md"
+//     />
+//   </div>
+
+// </section>
 //   );
 // }
-
 
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import heroImage from "@/public/Online-Tutoring.png";
-import animationData from "@/public/Book loading.json";
-
-const Lottie = dynamic(() => import("lottie-react"), {
-  ssr: false,
-});
 
 export default function HeroSection() {
   return (
-   <section className="flex flex-col md:flex-row items-center px-20 py-16 bg-[#F6F6F6]">
+    <section className="relative flex flex-col md:flex-row items-center px-20 min-h-[50vh] overflow-hidden">
 
-  {/* LEFT TEXT */}
-  <div className="max-w-lg">
-    <h1 className="text-4xl font-bold text-[#004B4B] mb-6 leading-tight">
-      Unlock Your Potential <br /> with Expert Tutors!
-    </h1>
+      {/* 🎥 BACKGROUND VIDEO */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+      >
+        <source src="/hero.mp4" type="video/mp4" />
+      </video>
 
-    <div className="space-x-4">
-      <Link href="/register">
-  <button className="bg-[#006A6A] text-white px-6 py-3 rounded-md hover:bg-[#005454] transition">
-    Get Started as Student
-  </button>
-</Link>
+      {/* 🌑 DARK OVERLAY */}
+      <div className="absolute inset-0 bg-black/50"></div>
 
-      <Link href="/tutor/auth">
-        <button className="border border-[#006A6A] text-[#006A6A] px-6 py-3 rounded-md hover:bg-[#006A6A] hover:text-white transition">
-          Become a Tutor
-        </button>
-      </Link>
-    </div>
-  </div>
+      {/* LEFT TEXT */}
+      <div className="relative z-10 max-w-lg text-white">
+        <h1 className="text-4xl font-bold mb-6 leading-tight">
+          Unlock Your Potential <br /> with Expert Tutors!
+        </h1>
 
-  {/* SPACER */}
-  <div className="flex-1" />
+        <div className="space-x-4">
+          <Link href="/register">
+            <button className="bg-[#006A6A] text-white px-6 py-3 rounded-md hover:bg-[#005454] transition">
+              Get Started as Student
+            </button>
+          </Link>
 
-  {/* ANIMATION */}
-  <div className="hidden md:block mr-8">
-    <Lottie
-      animationData={animationData}
-      loop
-      className="w-64"
-    />
-  </div>
+          <Link href="/tutor/auth">
+            <button className="border border-white text-white px-6 py-3 rounded-md hover:bg-white hover:text-[#006A6A] transition">
+              Become a Tutor
+            </button>
+          </Link>
+        </div>
+      </div>
 
-  {/* IMAGE */}
-  <div>
-    <Image
-      src={heroImage}
-      alt="Online Tutoring"
-      className="w-[420px] rounded-md"
-    />
-  </div>
+      {/* SPACER */}
+      <div className="flex-1" />
 
-</section>
+      {/* IMAGE */}
+      <div className="relative z-10">
+        <Image
+          src={heroImage}
+          alt="Online Tutoring"
+          className="w-[420px] rounded-md shadow-lg"
+        />
+      </div>
+
+    </section>
   );
 }

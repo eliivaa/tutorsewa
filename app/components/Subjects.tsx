@@ -18,7 +18,8 @@ export default function Subjects() {
 
   return (
     <section className="py-12 bg-[#F6F6F6] text-center overflow-hidden">
-      <h2 className="font-semibold text-xl underline underline-offset-4 mb-8">
+      
+      <h2 className="font-semibold text-2xl text-[#006A6A] underline underline-offset-4 mb-12">
         Popular Subjects
       </h2>
 

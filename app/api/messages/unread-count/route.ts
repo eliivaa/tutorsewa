@@ -1,41 +1,46 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth/getCurrentUserId";
-import { getTutorId } from "@/lib/auth/getTutorId";
 
 export async function GET() {
   const userId = await getCurrentUserId();
-  const tutorId = getTutorId();
 
-  if (!userId && !tutorId) {
+  if (!userId) {
     return NextResponse.json({ count: 0 });
   }
 
-  const count = await prisma.message.count({
-    where: {
-      isRead: false,
-      AND: [
-        // message not sent by me
-        userId
-          ? { NOT: { senderUserId: userId } }
-          : { NOT: { senderTutorId: tutorId } },
+  // const count = await prisma.message.count({
+  //   where: {
+  //     isRead: false,
 
-        // conversation where I participate
-        {
-          conversation: userId
-            ? {
-                OR: [
-                  { studentId: userId },
-                  { thriftUserId: userId },
-                ],
-              }
-            : {
-                tutorId: tutorId!,
-              },
-        },
+  //     // ✅ ONLY messages NOT sent by me
+  //     senderUserId: null, // tutor messages only
+
+  //     // ✅ ONLY conversations I belong to
+  //     conversation: {
+  //       OR: [
+  //         { studentId: userId },
+  //         { thriftUserId: userId },
+  //       ],
+  //     },
+  const count = await prisma.message.count({
+  where: {
+    isRead: false,
+
+    // ✅ exclude messages sent by me
+    NOT: {
+      senderUserId: userId,
+    },
+
+    // ✅ only conversations I belong to
+    conversation: {
+      OR: [
+        { studentId: userId },
+        { thriftUserId: userId },
       ],
     },
-  });
-
+  },
+});
+  
   return NextResponse.json({ count });
 }

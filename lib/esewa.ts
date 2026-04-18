@@ -1,25 +1,3 @@
-// import crypto from "crypto";
-
-// export function generateEsewaSignature({
-//   amount,
-//   total_amount,
-//   transaction_uuid,
-//   product_code,
-// }: {
-//   amount: number;
-//   total_amount: number;
-//   transaction_uuid: string;
-//   product_code: string;
-// }) {
-//   const message = `amount=${amount},total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
-
-//   return crypto
-//     .createHmac("sha256", process.env.ESEWA_SECRET_KEY!)
-//     .update(message)
-//     .digest("base64");
-// }
-
-
 import crypto from "crypto";
 
 export function generateEsewaSignature({
@@ -31,10 +9,12 @@ export function generateEsewaSignature({
   transaction_uuid: string;
   product_code: string;
 }) {
-  const message = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
+  const message = `total_amount=${String(total_amount)},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
+
+  console.log("SIGN MESSAGE:", message);
 
   return crypto
-    .createHmac("sha256", process.env.ESEWA_SECRET_KEY!)
+    .createHmac("sha256", process.env.ESEWA_SECRET_KEY!.trim())
     .update(message)
     .digest("base64");
 }

@@ -19,7 +19,8 @@ export default function TutorProfilePage() {
     photo: "",
   });
 
-  const [newSubject, setNewSubject] = useState("");
+const [subjectInput, setSubjectInput] = useState("");
+const [levelInput, setLevelInput] = useState("");
 
   /* =========================
    REVIEWS STATE
@@ -31,22 +32,28 @@ const [reviewCount, setReviewCount] = useState(0);
   /* =========================
      FETCH PROFILE
   ========================= */
-  useEffect(() => {
-    fetch("/api/tutor/me")
-      .then(res => res.json())
-      .then(data => {
-        setForm({
-          name: data.name || "",
-          bio: data.bio || "",
-          subjects: data.subjects || [],
-          rate: data.rate?.toString() || "",
-          experience: data.experience || "",
-          level: data.level || "",
-          photo: data.photo || "",
-        });
-        setLoading(false);
-      });
-  }, []);
+ useEffect(() => {
+  fetch("/api/tutor/me")
+    .then(res => res.json())
+    .then(data => {
+      const t = data.tutor || data; // ✅ handle correct shape
+
+      setForm(prev => ({
+  ...prev,
+  name: t.name || "",
+  bio: t.bio || "",
+  subjects: t.subjects || [],
+  rate: t.rate?.toString() || "",
+  experience: t.experience || "",
+  photo: t.photo || "",
+}));
+
+      setLoading(false);
+    })
+    .catch(() => {
+      setLoading(false);
+    });
+}, []);
 
 
   /* =========================
@@ -131,16 +138,31 @@ useEffect(() => {
   /* =========================
      SUBJECT HANDLERS
   ========================= */
-  const addSubject = () => {
-    if (!newSubject.trim()) return;
-    if (form.subjects.includes(newSubject.trim())) return;
+const addSubject = () => {
 
-    setForm(prev => ({
-      ...prev,
-      subjects: [...prev.subjects, newSubject.trim()],
-    }));
-    setNewSubject("");
-  };
+  if (!subjectInput.trim()) {
+    toast.error("Enter subject");
+    return;
+  }
+
+  const combined = `${subjectInput.trim()}|${levelInput.trim()}`;
+
+  const normalized = combined.toLowerCase().trim();
+
+  if (form.subjects.some(s => s.toLowerCase().trim() === normalized)) {
+    toast.error("Already added");
+    return;
+  }
+
+  setForm(prev => ({
+    ...prev,
+    subjects: [...prev.subjects, combined],
+  }));
+
+  setSubjectInput("");
+  setLevelInput("");
+};
+
 
   const removeSubject = (subject: string) => {
     setForm(prev => ({
@@ -220,36 +242,50 @@ useEffect(() => {
       <div className="mb-6">
         <label className="block font-medium mb-1">Subjects</label>
 
-        <div className="flex gap-2">
-          <input
-            className="flex-1 border rounded p-2"
-            placeholder="Add subject"
-            value={newSubject}
-            onChange={e => setNewSubject(e.target.value)}
-          />
-          <button
-            onClick={addSubject}
-            className="px-4 bg-[#004B4B] text-white rounded"
-          >
-            Add
-          </button>
-        </div>
+       <div className="flex gap-2">
+  <input
+    className="flex-1 border rounded p-2"
+    placeholder="Subject (e.g. Math)"
+    value={subjectInput}
+    onChange={e => setSubjectInput(e.target.value)}
+  />
+
+  <input
+    className="flex-1 border rounded p-2"
+    placeholder="Level (e.g. Grade 10)"
+    value={levelInput}
+    onChange={e => setLevelInput(e.target.value)}
+  />
+
+  <button
+    onClick={addSubject}
+    className="px-4 bg-[#004B4B] text-white rounded"
+  >
+    Add
+  </button>
+</div>
 
         <div className="flex gap-2 flex-wrap mt-3">
-          {form.subjects.map((s) => (
-            <span
-              key={s}
-              className="px-3 py-1 bg-[#E6F9F5] text-[#004B4B] rounded-full flex gap-2"
-            >
-              {s}
-              <button
-                onClick={() => removeSubject(s)}
-                className="text-red-500 font-bold"
-              >
-                ×
-              </button>
-            </span>
-          ))}
+          {form.subjects.map((s) => {
+  const [sub, lvl] = s.split("|");
+  const format = (text: string) =>
+  text.charAt(0).toUpperCase() + text.slice(1);
+
+  return (
+    <span
+      key={s}
+      className="px-3 py-1 bg-[#E6F9F5] text-[#004B4B] rounded-full flex gap-2"
+    >
+       {lvl ? `${format(sub)} (${format(lvl)})` : format(sub)}
+      <button
+        onClick={() => removeSubject(s)}
+        className="text-red-500 font-bold"
+      >
+        ×
+      </button>
+    </span>
+  );
+})}
         </div>
       </div>
 

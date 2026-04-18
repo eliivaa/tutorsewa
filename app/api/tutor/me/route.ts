@@ -106,13 +106,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  const tutor = await prisma.tutor.findUnique({
-    where: { id: decoded.id },
-    include: {
-      reviews: true,
-      bookings: true,
-    },
-  });
+const tutor = await prisma.tutor.findUnique({
+  where: { id: decoded.id },
+  include: {
+    reviews: true,
+    bookings: true,
+    subjects: true,   
+  },
+});;
 
   if (!tutor) {
     return NextResponse.json({ error: "Tutor not found" }, { status: 404 });
@@ -154,7 +155,9 @@ export async function GET(req: NextRequest) {
     email: tutor.email,
     photo: tutor.photo,
     bio: tutor.bio,
-    subjects: tutor.subjects,
+    subjects: tutor.subjects.map(
+  (s) => `${s.subject}|${s.level || ""}`
+),
     rate: tutor.rate,
     experience: tutor.experience,
     status: tutor.status,

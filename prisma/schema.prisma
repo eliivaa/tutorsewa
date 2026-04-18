@@ -29,16 +29,13 @@ enum TutorStatus {
 }
 
 enum BookingStatus {
-  REQUESTED // student booked
-  REJECTED // tutor rejected
-  PAYMENT_PENDING // tutor accepted, waiting for payment
-  PARTIALLY_PAID // 50% paid
-  FULLY_PAID // 100% paid
-  CONFIRMED // session unlocked
+  REQUESTED
+  PAYMENT_PENDING
+  READY
   COMPLETED
   CANCELLED
-  READY
   EXPIRED
+  REJECTED
 }
 
 enum PayMode {
@@ -59,16 +56,6 @@ enum AvailabilityType {
 enum PackageType {
   SINGLE_SESSION
   MONTHLY_PACKAGE
-}
-
-enum DayOfWeek {
-  MONDAY
-  TUESDAY
-  WEDNESDAY
-  THURSDAY
-  FRIDAY
-  SATURDAY
-  SUNDAY
 }
 
 enum NotificationType {
@@ -95,6 +82,8 @@ enum PaymentStatus {
   PENDING
   HALF_PAID
   FULL_PAID
+  REMAINING_DUE  
+  REFUNDED 
   FAILED
 }
 
@@ -114,6 +103,28 @@ enum ConversationType {
   THRIFT
 }
 
+enum CancelledBy {
+  STUDENT
+  TUTOR
+}
+
+enum RefundStatus {
+  NONE
+  CREDITED
+  NOT_ELIGIBLE
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 //////////////////////
 // USER
 //////////////////////
@@ -127,29 +138,36 @@ model User {
   grade         String?
   image         String?
   emailVerified DateTime?
-   // OTP EMAIL VERIFICATION
-  verifyCode   String?
-  verifyExpiry DateTime?
+  verifyCode    String?
+  verifyExpiry  DateTime?
   authProvider  AuthProvider @default(CREDENTIALS)
   status        UserStatus   @default(ACTIVE)
 
-  //  FORGOT PASSWORD
   resetToken   String?
   resetExpires DateTime?
+
+  walletBalance      Int                 @default(0)
+  walletTransactions WalletTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  thriftItems   ThriftItem[]
-  reviews       Review[]
-  bookings      Booking[]
-  notifications Notification[]
-  sentMessages Message[] @relation("UserMessages")
-  conversations Conversation[] @relation("StudentConvos")
+  accounts            Account[]
+  sessions            Session[]
+  thriftItems         ThriftItem[]
+  reviews             Review[]
+  bookings            Booking[]
+  notifications       Notification[]
+  sentMessages        Message[]      @relation("UserMessages")
+  conversations       Conversation[] @relation("StudentConvos")
   conversationsThrift Conversation[] @relation("ThriftUserConvos")
 
+suspendedBy String? // "ADMIN" | "USER"
+unpaidStrikeCount Int     @default(0)
+
+notifyBooking  Boolean @default(true)
+notifyPayment  Boolean @default(true)
+notifyMessage  Boolean @default(true)
 }
 
 //////////////////////
@@ -157,15 +175,14 @@ model User {
 //////////////////////
 
 model Tutor {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   name     String
-  email    String @unique
+  email    String  @unique
   phone    String
-  password String
+  password String?
 
   photo      String?
   bio        String?
-  subjects   String[]
   experience String?
   cvUrl      String?
   idUrl      String?
@@ -173,24 +190,66 @@ model Tutor {
 
   status TutorStatus @default(PENDING)
 
+  walletBalance Int @default(0)
+  walletTransactions TutorWalletTransaction[] 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  subjects       TutorSubject[]
   reviews        Review[]
-  averageRating Float @default(0)
-reviewCount   Int   @default(0)
   bookings       Booking[]
   availabilities TutorAvailability[]
-  sentMessages Message[] @relation("TutorMessages")
-  conversations Conversation[] @relation("TutorConvos")
+  sentMessages   Message[]      @relation("TutorMessages")
+  conversations  Conversation[] @relation("TutorConvos")
+  earnings       TutorEarning[]
+  withdrawals    Withdrawal[]
+  notifications  Notification[]
 
+  averageRating Float @default(0)
+  reviewCount   Int   @default(0)
 
+  emailVerified    Boolean   @default(false)
+  verificationCode String?
+  codeExpiresAt    DateTime?
 
+  rejectionReason  String?
+  suspensionReason String?
+}
+
+model TutorSubject {
+  id      String  @id @default(cuid())
+  tutorId String
+  subject String
+  level   String?
+
+  tutor Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([tutorId, subject, level])
+  @@index([tutorId])
+}
+
+model TutorEarning {
+  id        String   @id @default(uuid())
+  tutorId   String
+  bookingId String
+  amount    Float
+  type      String
+  createdAt DateTime @default(now())
+
+  tutor   Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([tutorId])
+  @@unique([bookingId, type])
 }
 
 //////////////////////
 // TUTOR AVAILABILITY
 //////////////////////
+
 model TutorAvailability {
   id      String @id @default(cuid())
   tutorId String
@@ -203,15 +262,20 @@ model TutorAvailability {
   endTime     String
   durationMin Int
 
-  sessionType AvailabilityType
-  maxStudents Int?
-  isActive    Boolean          @default(true)
+  sessionType  AvailabilityType
+  maxStudents  Int?
+  currentCount Int              @default(0)
+  isActive     Boolean          @default(true)
 
   tutor    Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([tutorId, date])
+  @@index([tutorId, subject, level])
+  @@index([isActive])
 }
 
 //////////////////////
@@ -224,6 +288,7 @@ model Booking {
   studentId      String
   tutorId        String
   availabilityId String
+  reviews Review[]
 
   student      User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
   tutor        Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade)
@@ -238,6 +303,10 @@ model Booking {
   endTime     DateTime
   durationMin Int
 
+  tutorEarnings TutorEarning[]
+   tutorPaid      Boolean   @default(false)
+  tutorPaidAt    DateTime?
+
   maxStudents  Int?
   currentCount Int  @default(1)
 
@@ -250,25 +319,40 @@ model Booking {
   note          String?
   notifications Notification[]
 
-  status BookingStatus @default(REQUESTED)
+  status       BookingStatus @default(REQUESTED)
+  tutorSeen    Boolean       @default(false)
+  cancelledBy  CancelledBy?
+  cancelReason String?
+
+  refundAmount Int          @default(0)
+  refundStatus RefundStatus @default(NONE)
+  refundedAt   DateTime?
 
   payments      Payment[]
   paymentStatus BookingPaymentStatus @default(UNPAID)
+  paymentDueAt DateTime?
 
   meetingRoom    String?
-  sessionStarted Boolean       @default(false)
+  sessionStarted Boolean   @default(false)
   startedAt      DateTime?
   endedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  walletTransactions WalletTransaction[]
+
+  @@index([studentId])
+  @@index([tutorId])
+  @@index([availabilityId])
   @@index([tutorId, startTime, endTime])
+  @@index([studentId, startTime, endTime])
 }
 
 //////////////////////
 // PAYMENT
 //////////////////////
+
 model Payment {
   id String @id @default(cuid())
 
@@ -279,8 +363,7 @@ model Payment {
   transactionUuid String         @unique
   amount          Int
   payMode         PayMode
-
-  paidAmount Int
+  paidAmount      Int
 
   status PaymentStatus @default(PENDING)
 
@@ -303,20 +386,25 @@ model Payment {
 //////////////////////
 
 model Review {
-  id      String @id @default(cuid())
-  rating  Int
-  comment String
+  id        String   @id @default(cuid())
 
-  tutorId String
-  userId  String
+  tutorId   String
+  userId    String
+bookingId String
 
-  tutor Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([tutorId, userId])
+  tutor   Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+
+  @@unique([bookingId]) 
 }
 
 //////////////////////
@@ -332,9 +420,13 @@ model ThriftItem {
   contact   String
   image     String?
   grade     String?
+  location String?
 
-  isSold    Boolean @default(false)   // 👈 ADD THIS
-  isActive  Boolean @default(true)    // 👈 OPTIONAL (better than delete)
+  isSold   Boolean @default(false)
+  isActive Boolean @default(true)
+
+  isReported   Boolean  @default(false)
+  reportReason String?
 
   sellerId String
   seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
@@ -343,8 +435,8 @@ model ThriftItem {
 
   @@index([isSold])
   @@index([isActive])
+  @@index([isReported])
 }
-
 
 //////////////////////
 // NEXTAUTH
@@ -389,46 +481,42 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+//////////////////////
+// NOTIFICATION
+//////////////////////
+
 model Notification {
   id String @id @default(cuid())
 
-  // Owner (ONE of these)
-  userId  String? // Student
-  tutorId String? // Tutor
+  userId  String?
+  tutorId String?
 
-    // ⭐ NEW
-  isForAdmin Boolean @default(false)
-  adminCategory String? // REGISTER / PAYMENT / SESSION / SYSTEM
+  isForAdmin    Boolean @default(false)
+  adminCategory String?
 
-  // Core content
   title   String
   message String
   type    NotificationType
 
-  // Optional references
   bookingId String?
   sessionId String?
   studentId String?
 
-  // Action handling
   actionUrl   String?
   actionLabel String?
 
-  // Read status
   isRead Boolean @default(false)
 
-
-
-  // Timestamp
   createdAt DateTime @default(now())
 
-  // Relations
-  user    User?    @relation(fields: [userId], references: [id])
-  booking Booking? @relation(fields: [bookingId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tutor   Tutor?   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([tutorId])
-   @@index([isForAdmin])
+  @@index([bookingId])
+  @@index([isForAdmin])
 }
 
 //////////////////////
@@ -438,19 +526,16 @@ model Notification {
 model Conversation {
   id String @id @default(cuid())
 
-  // common
   studentId String
-  student   User @relation("StudentConvos", fields: [studentId], references: [id])
+  student   User   @relation("StudentConvos", fields: [studentId], references: [id], onDelete: Cascade)
 
   type ConversationType
 
-  // tutor chat
   tutorId String?
-  tutor   Tutor? @relation("TutorConvos", fields: [tutorId], references: [id])
+  tutor   Tutor?  @relation("TutorConvos", fields: [tutorId], references: [id], onDelete: Cascade)
 
-  // thrift chat
   thriftUserId String?
-  thriftUser   User? @relation("ThriftUserConvos", fields: [thriftUserId], references: [id])
+  thriftUser   User?   @relation("ThriftUserConvos", fields: [thriftUserId], references: [id], onDelete: Cascade)
 
   thriftItemId String?
 
@@ -458,33 +543,75 @@ model Conversation {
 
   createdAt DateTime @default(now())
 
-  // IMPORTANT UNIQUES
   @@unique([studentId, tutorId], map: "unique_tutor_chat")
   @@unique([studentId, thriftUserId, thriftItemId], map: "unique_thrift_chat")
 }
 
-
-
 model Message {
-  id             String       @id @default(cuid())
+  id String @id @default(cuid())
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  // sender can be student OR tutor
   senderUserId  String?
   senderTutorId String?
 
   senderUser  User?  @relation("UserMessages", fields: [senderUserId], references: [id], onDelete: Cascade)
   senderTutor Tutor? @relation("TutorMessages", fields: [senderTutorId], references: [id], onDelete: Cascade)
 
-  content   String
-  isRead    Boolean  @default(false)
+  content String
+  isRead  Boolean @default(false)
 
   createdAt DateTime @default(now())
+
+  @@index([conversationId])
 }
 
+//////////////////////
+// WALLET
+//////////////////////
 
+model WalletTransaction {
+  id        String                @id @default(uuid())
+  userId    String
+  amount    Float
+  type      WalletTransactionType
+  reason    String
+  bookingId String?
+  createdAt DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([bookingId])
+}
+model TutorWalletTransaction {
+  id        String                @id @default(uuid())
+  tutorId   String
+  amount    Float
+  type      WalletTransactionType
+  reason    String
+  bookingId String?
+  createdAt DateTime              @default(now())
+
+  tutor Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@index([tutorId])
+  @@index([bookingId])
+}
+
+model Withdrawal {
+  id        String           @id @default(cuid())
+  tutorId   String
+  amount    Int
+  status    WithdrawalStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+
+  tutor Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@index([tutorId])
+}
 
 //////////////////////
 // ADMIN

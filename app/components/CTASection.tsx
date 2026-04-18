@@ -22,7 +22,7 @@ import Link from "next/link";
 
 export default function CTASection() {
   return (
-    <section className="relative bg-gradient-to-r from-[#009999] to-[#004B4B] text-white py-24 overflow-hidden">
+<section className="relative bg-gradient-to-b from-[#009999] to-[#004B4B] text-white py-24 overflow-hidden">
 
       {/* 🌊 WAVE LAYER 1 */}
       <div className="absolute bottom-0 left-0 w-[200%] animate-waveSlow">
@@ -107,6 +107,9 @@ export default function CTASection() {
           }
         }
       `}</style>
+      {/* 👇 SOFT FADE INTO NEXT SECTION */}
+<div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-b from-transparent to-[#0f766e] pointer-events-none"></div>
     </section>
   );
 }
+

@@ -4,906 +4,22 @@
 // import { io, Socket } from "socket.io-client";
 // import { useSession } from "next-auth/react";
 // import { useSearchParams } from "next/navigation";
-// import Image from "next/image";
 
 
-// type Conversation = {
-//   id: string;
-//   bookingId: string;
-//   unread: number;
-//   allowed: boolean;
-//   booking: {
-//     status: string;
-//     startTime: string;
-//     tutor: { name: string; photo?: string | null };
-//   };
-// };
-
-// type Msg = {
-//   id?: string;
-//   content: string;
-//   senderUserId?: string | null;
-//   senderTutorId?: string | null;
-//   createdAt: string;
-//   bookingId?: string;
-// };
-
-// export default function StudentMessagesPage() {
-//   const { data: session } = useSession();
-//   const userId = session?.user?.id;
-
-//   const [convos, setConvos] = useState<Conversation[]>([]);
-//   const [active, setActive] = useState<Conversation | null>(null);
-//   const [messages, setMessages] = useState<Msg[]>([]);
-//   const [text, setText] = useState("");
-//   const [socket, setSocket] = useState<Socket | null>(null);
-
-//   const bottomRef = useRef<HTMLDivElement | null>(null);
-
-//  const searchParams = useSearchParams();
-// const bookingFromUrl = searchParams?.get("bookingId") || null;
-
-
-
-//   /* ================= SOCKET INIT ================= */
-
-//   useEffect(() => {
-//     let socketInstance: Socket;
-
-//     async function init() {
-//       await fetch("/api/socket/io");
-
-//       socketInstance = io({
-//         path: "/api/socket/io",
-//         transports: ["websocket"],
-//       });
-
-//       setSocket(socketInstance);
-
-//      socketInstance.on("receive-message", (data: Msg) => {
-//   if (data.bookingId === active?.bookingId) {
-//     setMessages((prev) => {
-//       const exists = prev.some(
-//         (m) =>
-//           m.createdAt === data.createdAt &&
-//           m.content === data.content
-//       );
-//       if (exists) return prev;
-
-//       return [...prev, data];
-//     });
-//   }
-
-//   // 🔥 IMPORTANT: refresh sidebar + unread badge
-//   loadConvos();
-// });
-//     }
-
-//     return () => {
-//       socketInstance?.disconnect();
-//     };
-//   }, [active?.bookingId]);
-
-//   /* ================= LOAD CONVERSATIONS ================= */
-
-//   async function loadConvos() {
-//     const res = await fetch("/api/messages/conversations");
-//     const data = await res.json();
-//     setConvos(data.conversations || []);
-
-//     if (bookingFromUrl) {
-//   const found = data.conversations.find(
-//     (c: any) => c.bookingId === bookingFromUrl
-//   );
-//   if (found) {
-//     setActive(found);
-//     return;
-//   }
-// }
-
-// // If no booking in URL → DO NOT auto select
-
-//   }
-
-//   /* ================= LOAD MESSAGES ================= */
-
-//   async function loadMessages(bookingId: string) {
-//     const res = await fetch(`/api/messages/${bookingId}`);
-//     const data = await res.json();
-//     setMessages(data.messages || []);
-
-//     await fetch(`/api/messages/${bookingId}/read`, {
-//       method: "POST",
-//     });
-//   }
-
-//   /* ================= SEND MESSAGE ================= */
-
-//   async function send() {
-//     if (!active?.allowed || !socket) {
-//       alert("Messaging not allowed yet.");
-//       return;
-//     }
-
-//     if (!text.trim()) return;
-
-//     const tempMessage: Msg = {
-//       bookingId: active.bookingId,
-//       content: text,
-//       senderUserId: userId,
-//       createdAt: new Date().toISOString(),
-//     };
-
-//     // 1️⃣ Immediately update UI
-//     setMessages((prev) => [...prev, tempMessage]);
-//     setText("");
-
-//     // 2️⃣ Save to DB
-//     await fetch(`/api/messages/${active.bookingId}/send`, {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ content: tempMessage.content }),
-//     });
-
-//     // 3️⃣ Emit realtime
-//     socket.emit("send-message", tempMessage);
-//   }
-
-//   /* ================= JOIN ROOM WHEN ACTIVE CHANGES ================= */
-
-//   useEffect(() => {
-//     if (active && socket) {
-//       socket.emit("join-room", active.bookingId);
-//       loadMessages(active.bookingId);
-//     }
-//   }, [active?.bookingId, socket]);
-
-//   /* ================= INITIAL LOAD ================= */
-
-//   useEffect(() => {
-//     loadConvos();
-//   }, []);
-
-//   /* ================= AUTO SCROLL ================= */
-
-//   useEffect(() => {
-//     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   return (
-//     <div className="h-[80vh] bg-white border rounded-2xl overflow-hidden flex">
-
-//       {/* LEFT LIST */}
-//       <div className="w-[340px] border-r bg-[#F7FAFA]">
-//         <div className="p-4 font-semibold text-[#004B4B]">
-//           Messages
-//         </div>
-
-//         <div className="px-3 space-y-2 overflow-auto h-[calc(80vh-60px)]">
-//           {convos.map((c) => (
-//             <button
-//               key={c.id}
-//               onClick={() => setActive(c)}
-//               className={`w-full text-left p-3 rounded-xl border transition ${
-//                 active?.bookingId === c.bookingId
-//                   ? "bg-white border-[#4CB6B6]"
-//                   : "bg-white/60 hover:bg-white"
-//               }`}
-//             >
-//               <div className="flex items-center gap-3">
-//                 <img
-//                   src={c.booking.tutor.photo || "/default-avatar.png"}
-//                   className="w-10 h-10 rounded-full object-cover"
-//                   alt=""
-//                 />
-
-//                 <div className="flex-1">
-//                   <div className="flex justify-between items-center">
-//                     <p className="font-medium text-[#004B4B]">
-//                       {c.booking.tutor.name}
-//                     </p>
-
-//                     {c.unread > 0 && (
-//                       <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">
-//                         {c.unread}
-//                       </span>
-//                     )}
-//                   </div>
-//                 </div>
-//               </div>
-
-//               {!c.allowed && (
-//                 <p className="text-[11px] text-orange-600 mt-2">
-//                   Enabled after tutor accepts booking
-//                 </p>
-//               )}
-//             </button>
-//           ))}
-//         </div>
-//       </div>
-
-//      {/* RIGHT CHAT */}
-// <div className="flex-1 flex flex-col">
-
-//   {!active ? (
-
-//     /* ================= DEFAULT SCREEN ================= */
-//    <div className="flex-1 flex items-center justify-center bg-[#F8F6EF]">
-//   <div className="text-center space-y-6">
-
-//     {/* LOGO */}
-//     <div className="flex justify-center">
-//       <Image
-//         src="/tutorsewa-logo.png"
-//         alt="TutorSewa Logo"
-//         width={100}
-//         height={100}
-//         className="drop-shadow-lg"
-//       />
-//     </div>
-
-//     {/* BRAND NAME */}
-//     <div className="text-3xl font-bold tracking-wide">
-//       <span className="text-[#48A6A7]">TUTOR</span>
-//       <span className="text-[#006A6A]">SEWA</span>
-//     </div>
-
-//     {/* MESSAGE BOX */}
-//     <div className="border-2 border-[#006A6A] px-8 py-3 text-[#006A6A] font-medium rounded-lg inline-block">
-//       Chat with tutors for more inquiries!
-//     </div>
-
-//   </div>
-// </div>
-
-
-//   ) : (
-
-//     /* ================= ACTIVE CHAT ================= */
-//     <>
-//       {/* HEADER */}
-//       <div className="p-4 border-b bg-white">
-//         <p className="font-semibold text-[#004B4B]">
-//           {active.booking.tutor.name}
-//         </p>
-
-//         <p className="text-xs text-gray-500">
-//           Status: {active.booking.status}
-//         </p>
-//       </div>
-
-//       {/* MESSAGE AREA */}
-//       <div className="flex-1 p-4 overflow-auto space-y-2 bg-[#FAFBFC]">
-//         {messages.map((m, index) => {
-//           const mine = m.senderUserId === userId;
-
-//           return (
-//             <div
-//               key={index}
-//               className={`flex ${
-//                 mine ? "justify-end" : "justify-start"
-//               }`}
-//             >
-//               <div
-//                 className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm ${
-//                   mine
-//                     ? "bg-[#4CB6B6] text-white"
-//                     : "bg-white border"
-//                 }`}
-//               >
-//                 {m.content}
-//               </div>
-//             </div>
-//           );
-//         })}
-
-//         <div ref={bottomRef} />
-//       </div>
-
-//       {/* INPUT AREA */}
-//       <div className="p-3 border-t flex gap-2 bg-white">
-//         <input
-//           value={text}
-//           onChange={(e) => setText(e.target.value)}
-//           placeholder={
-//             active.allowed
-//               ? "Type a message..."
-//               : "Chat locked until accepted"
-//           }
-//           className="flex-1 border rounded-xl px-3 py-2 text-sm"
-//           disabled={!active.allowed}
-//         />
-
-//         <button
-//           onClick={send}
-//           disabled={!active.allowed}
-//           className="px-4 py-2 rounded-xl bg-[#004B4B] text-white disabled:opacity-40"
-//         >
-//           Send
-//         </button>
-//       </div>
-//     </>
-//   )}
-
-// </div>
-
-//       </div>
-    
-//   );
-// }
-
-
-
-
-
-
-
-// "use client";
-
-// import { useEffect, useRef, useState } from "react";
-// import { io, Socket } from "socket.io-client";
-// import { useSession } from "next-auth/react";
-
-// type Conversation = {
-//   id: string; // conversationId
-//   unread: number;
-//   allowed: boolean;
-//   tutor: {
-//     id: string;
-//     name: string;
-//     photo?: string | null;
-//   };
-// };
-
-// type Msg = {
-//   id?: string;
-//   content: string;
-//   senderUserId?: string | null;
-//   senderTutorId?: string | null;
-//   createdAt: string;
-//   conversationId?: string;
-// };
-
-// export default function StudentMessagesPage() {
-//   const { data: session } = useSession();
-//   const userId = session?.user?.id;
-
-//   const [convos, setConvos] = useState<Conversation[]>([]);
-//   const [active, setActive] = useState<Conversation | null>(null);
-//   const [messages, setMessages] = useState<Msg[]>([]);
-//   const [text, setText] = useState("");
-//   const [socket, setSocket] = useState<Socket | null>(null);
-
-//   const bottomRef = useRef<HTMLDivElement | null>(null);
-
-//   /* ================= SOCKET INIT ================= */
-
-//   useEffect(() => {
-//   let socketInstance: Socket;
-
-//   async function init() {
-//     await fetch("/api/socket/io");
-
-//     socketInstance = io({
-//       path: "/api/socket/io",
-//       transports: ["websocket"],
-//     });
-
-//     setSocket(socketInstance);
-
-//     socketInstance.on("receive-message", (data: Msg) => {
-//       setMessages((prev) => {
-//         // Only append if this conversation is open
-//         if (data.conversationId === active?.id) {
-//           return [...prev, data];
-//         }
-//         return prev;
-//       });
-//     });
-//   }
-
-//   init();
-
-//   return () => {
-//     socketInstance?.disconnect();
-//   };
-// }, []);   // 🔥 REMOVE active?.id dependency
-
-
-
-//   /* ================= LOAD CONVERSATIONS ================= */
-
-//   async function loadConvos() {
-//     const res = await fetch("/api/messages/conversations");
-//     const data = await res.json();
-
-//     setConvos(data.conversations || []);
-
-//     if (!active && data.conversations?.length) {
-//       setActive(data.conversations[0]);
-//     }
-//   }
-
-//   /* ================= LOAD MESSAGES ================= */
-
-//   async function loadMessages(conversationId: string) {
-//     const res = await fetch(`/api/messages/${conversationId}`);
-//     const data = await res.json();
-//     setMessages(data.messages || []);
-
-//     await fetch(`/api/messages/${conversationId}/read`, {
-//       method: "POST",
-//     });
-//   }
-
-//   /* ================= SEND ================= */
-
-//   async function send() {
-//     if (!active?.allowed || !socket) return;
-//     if (!text.trim()) return;
-
-//     const temp: Msg = {
-//       conversationId: active.id,
-//       content: text,
-//       senderUserId: userId,
-//       createdAt: new Date().toISOString(),
-//     };
-
-//     setMessages((prev) => [...prev, temp]);
-//     setText("");
-
-//     await fetch(`/api/messages/${active.id}/send`, {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ content: temp.content }),
-//     });
-
-//     socket.emit("send-message", temp);
-//   }
-
-//   /* ================= JOIN ROOM ================= */
-
-//   useEffect(() => {
-//     if (active && socket) {
-//       socket.emit("join-room", active.id);
-//       loadMessages(active.id);
-//     }
-//   }, [active?.id, socket]);
-
-//   /* ================= INIT ================= */
-
-//   useEffect(() => {
-//     loadConvos();
-//   }, []);
-
-//   useEffect(() => {
-//     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   return (
-//     <div className="h-[80vh] bg-white border rounded-2xl flex">
-
-//       {/* LEFT */}
-//       <div className="w-[340px] border-r bg-[#F7FAFA] p-4 space-y-2 overflow-auto">
-//         {convos.map((c) => (
-//           <button
-//             key={c.id}
-//             onClick={() => setActive(c)}
-//             className={`w-full text-left p-3 rounded-xl border ${
-//               active?.id === c.id
-//                 ? "bg-white border-[#4CB6B6]"
-//                 : "bg-white/60"
-//             }`}
-//           >
-//             <div className="flex items-center gap-3">
-//               <img
-//                 src={c.tutor.photo || "/default-avatar.png"}
-//                 className="w-10 h-10 rounded-full"
-//               />
-//               <div className="flex-1 flex justify-between">
-//                 <p className="font-medium">{c.tutor.name}</p>
-//                 {c.unread > 0 && (
-//                   <span className="text-xs bg-red-500 text-white px-2 rounded-full">
-//                     {c.unread}
-//                   </span>
-//                 )}
-//               </div>
-//             </div>
-//           </button>
-//         ))}
-//       </div>
-
-      
-//       {/* RIGHT */}
-// <div className="flex-1 flex flex-col">
-
-//   {/* ✅ CHAT HEADER WITH PHOTO */}
-//   <div className="p-4 border-b flex items-center gap-3 bg-white">
-//     {active ? (
-//       <>
-//         <img
-//           src={active.tutor.photo || "/default-avatar.png"}
-//           className="w-10 h-10 rounded-full object-cover"
-//         />
-
-//         <div>
-//           <p className="font-semibold text-[#004B4B]">
-//             {active.tutor.name}
-//           </p>
-//           <p className="text-xs text-gray-500">
-//             Chat conversation
-//           </p>
-//         </div>
-//       </>
-//     ) : (
-//       <p className="font-semibold text-gray-500">
-//         Select chat
-//       </p>
-//     )}
-//   </div>
-
-
-//         <div className="flex-1 p-4 overflow-auto space-y-2">
-//           {messages.map((m, i) => {
-//   const mine = m.senderUserId === userId;
-
-//   return (
-//     <div
-//       key={i}
-//       className={`flex items-end gap-2 ${
-//         mine ? "justify-end" : "justify-start"
-//       }`}
-//     >
-//       {/* 👤 Tutor Avatar (left side messages only) */}
-//       {!mine && (
-//         <img
-//           src={active?.tutor.photo || "/default-avatar.png"}
-//           className="w-8 h-8 rounded-full object-cover"
-//         />
-//       )}
-
-//       {/* 💬 Message Bubble */}
-//       <div
-//         className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm ${
-//           mine
-//             ? "bg-[#4CB6B6] text-white"
-//             : "bg-white border"
-//         }`}
-//       >
-//         {m.content}
-//       </div>
-//     </div>
-//   );
-// })}
-
-//           <div ref={bottomRef} />
-//         </div>
-
-//         <div className="p-3 border-t flex gap-2">
-//           <input
-//             value={text}
-//             onChange={(e) => setText(e.target.value)}
-//             disabled={!active?.allowed}
-//             className="flex-1 border rounded-xl px-3 py-2"
-//           />
-//           <button
-//             onClick={send}
-//             disabled={!active?.allowed}
-//             className="px-4 py-2 bg-[#004B4B] text-white rounded-xl"
-//           >
-//             Send
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-// "use client";
-
-// import { useEffect, useRef, useState } from "react";
-// import { io, Socket } from "socket.io-client";
-// import { useSession } from "next-auth/react";
-
-// type Conversation = {
-//   id: string;
-//   unread: number;
-//   allowed: boolean;
-//   tutor: {
-//     id: string;
-//     name: string;
-//     photo?: string | null;
-//   };
-// };
-
-// type Msg = {
-//   id?: string;
-//   content: string;
-//   senderUserId?: string | null;
-//   senderTutorId?: string | null;
-//   createdAt: string;
-//   conversationId?: string;
-// };
-
-// export default function StudentMessagesPage() {
-//   const { data: session } = useSession();
-//   const userId = session?.user?.id;
-
-//   const [convos, setConvos] = useState<Conversation[]>([]);
-//   const [active, setActive] = useState<Conversation | null>(null);
-//   const [messages, setMessages] = useState<Msg[]>([]);
-//   const [text, setText] = useState("");
-//   const [socket, setSocket] = useState<Socket | null>(null);
-
-//   const activeRef = useRef<string | null>(null);
-//   const bottomRef = useRef<HTMLDivElement | null>(null);
-
-//   /* ================= SOCKET INIT ================= */
-
-//   useEffect(() => {
-//     let socketInstance: Socket;
-
-//     async function init() {
-//       await fetch("/api/socket/io");
-
-//       socketInstance = io({
-//         path: "/api/socket/io",
-//         transports: ["websocket"],
-//       });
-
-//       setSocket(socketInstance);
-
-//       socketInstance.on("receive-message", (data: Msg) => {
-//         // Only append if current room matches
-//         if (data.conversationId === activeRef.current) {
-//           setMessages((prev) => {
-//             // Prevent duplicates
-//             if (prev.find((m) => m.id === data.id)) return prev;
-//             return [...prev, data];
-//           });
-//         }
-//       });
-//     }
-
-//     init();
-
-//     return () => {
-//       socketInstance?.disconnect();
-//     };
-//   }, []);
-
-//   /* ================= LOAD CONVERSATIONS ================= */
-
-//   useEffect(() => {
-//     async function load() {
-//       const res = await fetch("/api/messages/conversations");
-//       const data = await res.json();
-//       setConvos(data.conversations || []);
-
-//       if (data.conversations?.length) {
-//         setActive(data.conversations[0]);
-//       }
-//     }
-
-//     load();
-//   }, []);
-
-//   /* ================= LOAD MESSAGES ================= */
-
-//   useEffect(() => {
-//     if (!active || !socket) return;
-
-//     const conversationId = active.id; // ✅ FIXED
-
-//     activeRef.current = conversationId;
-
-//     socket.emit("join-room", conversationId);
-
-//     async function load() {
-//       const res = await fetch(`/api/messages/${conversationId}`);
-//       const data = await res.json();
-//       setMessages(data.messages || []);
-//     }
-
-//     load();
-//   }, [active, socket]);
-
-//   /* ================= SEND ================= */
-
-//   async function send() {
-//     if (!text.trim() || !active || !socket || !userId) return;
-
-//     const conversationId = active.id;
-
-//     const temp: Msg = {
-//       conversationId,
-//       content: text,
-//       senderUserId: userId,
-//       createdAt: new Date().toISOString(),
-//     };
-
-//     // Instant UI update
-//     setMessages((prev) => [...prev, temp]);
-//     setText("");
-
-//     // Save in DB
-//     const res = await fetch(`/api/messages/${conversationId}/send`, {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ content: temp.content }),
-//     });
-
-//     const saved = await res.json();
-
-//     // Emit saved message (with real id)
-//     socket.emit("send-message", saved.message);
-//   }
-
-//   /* ================= AUTO SCROLL ================= */
-
-//   useEffect(() => {
-//     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   /* ================= UI ================= */
-
-//   return (
-//     <div className="h-[80vh] bg-white border rounded-2xl flex">
-
-//       {/* LEFT PANEL */}
-//       <div className="w-[340px] border-r bg-[#F7FAFA] p-4 space-y-2 overflow-auto">
-//         {convos.map((c) => (
-//           <button
-//             key={c.id}
-//             onClick={() => setActive(c)}
-//             className={`w-full text-left p-3 rounded-xl border ${
-//               active?.id === c.id
-//                 ? "bg-white border-[#4CB6B6]"
-//                 : "bg-white/60"
-//             }`}
-//           >
-//             <div className="flex items-center gap-3">
-//               <img
-//                 src={c.tutor.photo || "/default-avatar.png"}
-//                 className="w-10 h-10 rounded-full"
-//               />
-//               <div className="flex-1 flex justify-between">
-//                 <p className="font-medium">{c.tutor.name}</p>
-//                 {c.unread > 0 && (
-//                   <span className="text-xs bg-red-500 text-white px-2 rounded-full">
-//                     {c.unread}
-//                   </span>
-//                 )}
-//               </div>
-//             </div>
-//           </button>
-//         ))}
-//       </div>
-
-//       {/* RIGHT PANEL */}
-//       <div className="flex-1 flex flex-col">
-
-//         {/* HEADER */}
-//         <div className="p-4 border-b flex items-center gap-3 bg-white">
-//           {active ? (
-//             <>
-//               <img
-//                 src={active.tutor.photo || "/default-avatar.png"}
-//                 className="w-10 h-10 rounded-full object-cover"
-//               />
-//               <div>
-//                 <p className="font-semibold text-[#004B4B]">
-//                   {active.tutor.name}
-//                 </p>
-//                 <p className="text-xs text-gray-500">
-//                   Chat conversation
-//                 </p>
-//               </div>
-//             </>
-//           ) : (
-//             <p className="font-semibold text-gray-500">
-//               Select chat
-//             </p>
-//           )}
-//         </div>
-
-//         {/* CHAT AREA */}
-//         <div className="flex-1 p-4 overflow-auto space-y-2 bg-gray-50">
-//           {messages.map((m, i) => {
-//             const mine = m.senderUserId === userId;
-
-//             return (
-//               <div
-//                 key={i}
-//                 className={`flex items-end gap-2 ${
-//                   mine ? "justify-end" : "justify-start"
-//                 }`}
-//               >
-//                 {!mine && (
-//                   <img
-//                     src={active?.tutor.photo || "/default-avatar.png"}
-//                     className="w-8 h-8 rounded-full object-cover"
-//                   />
-//                 )}
-
-//                 <div
-//                   className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm ${
-//                     mine
-//                       ? "bg-[#4CB6B6] text-white"
-//                       : "bg-white border"
-//                   }`}
-//                 >
-//                   {m.content}
-//                 </div>
-//               </div>
-//             );
-//           })}
-
-//           <div ref={bottomRef} />
-//         </div>
-
-//         {/* INPUT */}
-//         <div className="p-3 border-t flex gap-2">
-//           <input
-//             value={text}
-//             onChange={(e) => setText(e.target.value)}
-//             disabled={!active?.allowed}
-//             className="flex-1 border rounded-xl px-3 py-2"
-//             placeholder="Type a message..."
-//           />
-//           <button
-//             onClick={send}
-//             disabled={!active?.allowed}
-//             className="px-4 py-2 bg-[#004B4B] text-white rounded-xl"
-//           >
-//             Send
-//           </button>
-//         </div>
-
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-// "use client";
-
-// import { useEffect, useRef, useState } from "react";
-// import { io, Socket } from "socket.io-client";
-// import { useSession } from "next-auth/react";
-
-// // type Conversation = {
-// //   id: string;
-// //   unread: number;
-// //   allowed: boolean;
-// //   tutor: {
-// //     id: string;
-// //     name: string;
-// //     photo?: string | null;
-// //   };
-// // };
-
-
-// // added thrift
-
+// /* ================= UPDATED TYPE ================= */
 // type Conversation = {
 //   id: string;
 //   unread: number;
 //   allowed: boolean;
 //   type: "TUTOR_SESSION" | "THRIFT";
-//   tutor: {
-//     id: string;
-//     name: string;
+
+//   person: {
+//     id?: string;
+//     name?: string | null;
 //     photo?: string | null;
-//   };
+//   } | null;
 // };
+
 
 // type Msg = {
 //   id?: string;
@@ -914,6 +30,24 @@
 //   conversationId: string;
 //   clientTempId?: string;
 // };
+
+// /* ================= HELPER ================= */
+// function getPerson(c: Conversation | null) {
+//   if (!c?.person) {
+//     return {
+//       name: "User",
+//       photo: "/default-avatar.png",
+//       label: "",
+//     };
+//   }
+
+//   return {
+//     name: c.person.name || "User",
+//     photo: c.person.photo || "/default-avatar.png",
+//     label: c.type === "THRIFT" ? "🛒 Thrift Inquiry" : "Tutor Chat",
+//   };
+// }
+
 
 // export default function StudentMessagesPage() {
 //   const { data: session, status } = useSession();
@@ -929,8 +63,12 @@
 //   const bottomRef = useRef<HTMLDivElement | null>(null);
 //   const activeIdRef = useRef<string | null>(null);
 //   const joinedRoomRef = useRef<string | null>(null);
+//   const searchParams = useSearchParams();
+// const conversationIdFromUrl = searchParams?.get("conversationId");
 
-//   /* ================= SOCKET INIT (ONLY ONCE) ================= */
+
+
+//   /* ================= SOCKET INIT ================= */
 //   useEffect(() => {
 //     let s: Socket | null = null;
 
@@ -962,21 +100,30 @@
 //   }, []);
 
 //   /* ================= LOAD CONVERSATIONS ================= */
-//   useEffect(() => {
-//     (async () => {
-//       const res = await fetch("/api/messages/conversations");
-//       const data = await res.json();
+//  useEffect(() => {
+//   (async () => {
+//     const res = await fetch("/api/messages/conversations");
+//     const data = await res.json();
 
-//       setConvos(data.conversations || []);
+//     const list = data.conversations || [];
+//     setConvos(list);
 
-//       if (!active && data.conversations?.length) {
-//         setActive(data.conversations[0]);
+//     // 🧠 open the correct conversation from URL
+//     if (conversationIdFromUrl) {
+//       const match = list.find((c: any) => c.id === conversationIdFromUrl);
+//       if (match) {
+//         setActive(match);
+//         return;
 //       }
-//     })();
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, []);
+//     }
 
-//   /* ================= JOIN + LOAD MESSAGES WHEN ACTIVE CHANGES ================= */
+//     // fallback (first chat)
+//     if (list.length) setActive(list[0]);
+//   })();
+// }, [conversationIdFromUrl]);
+
+
+//   /* ================= JOIN ROOM ================= */
 //   useEffect(() => {
 //     if (!active || !socket) return;
 
@@ -1001,98 +148,138 @@
 
 //   /* ================= SEND ================= */
 //   async function send() {
-//     if (!active?.allowed) return;
-//     if (!text.trim()) return;
-//     if (!socket) return;
-//     if (!active) return;
-//     if (!userId) return;
+//   if (!active?.allowed) return;
+//   if (!text.trim()) return;
+//   if (!socket) return;
+//   if (!active) return;
+//   if (!userId) return;
 
-//     const clientTempId = crypto.randomUUID();
+//   const clientTempId = crypto.randomUUID();
 
-//     const temp: Msg = {
-//       conversationId: active.id,
-//       content: text,
-//       senderUserId: userId,
-//       createdAt: new Date().toISOString(),
-//       clientTempId,
-//     };
+//   const temp: Msg = {
+//     conversationId: active.id,
+//     content: text,
+//     senderUserId: userId,
+//     createdAt: new Date().toISOString(),
+//     clientTempId,
+//   };
 
-//     setMessages((prev) => [...prev, temp]);
-//     setText("");
+//   // ✅ optimistic UI (show message first)
+//   setMessages((prev) => [...prev, temp]);
+//   setText("");
 
-//     await fetch(`/api/messages/${active.id}/send`, {
+//   try {
+//     const res = await fetch(`/api/messages/${active.id}/send`, {
 //       method: "POST",
 //       headers: { "Content-Type": "application/json" },
 //       body: JSON.stringify({ content: temp.content }),
 //     });
 
-//     socket.emit("send-message", temp);
-//   }
+//     const data = await res.json();
 
+//     // ❌ HANDLE BLOCK
+//     if (!res.ok) {
+
+//       // 🔥 PAYMENT OVERDUE CASE
+//       if (data.error === "PAYMENT_OVERDUE") {
+//         alert(data.message || "Please complete your payment first.");
+
+//         // ❌ remove fake message
+//         setMessages((prev) =>
+//           prev.filter((m) => m.clientTempId !== clientTempId)
+//         );
+
+//         // 👉 redirect to payment page
+//         window.location.href = "/dashboard/payments";
+//         return;
+//       }
+
+//       // other errors
+//       alert(data.error || "Failed to send message");
+
+//       // ❌ remove fake message
+//       setMessages((prev) =>
+//         prev.filter((m) => m.clientTempId !== clientTempId)
+//       );
+
+//       return;
+//     }
+
+//     // ✅ success → emit socket
+//     socket.emit("send-message", temp);
+
+//   } catch (err) {
+//     console.error("SEND ERROR:", err);
+
+//     // ❌ remove fake message
+//     setMessages((prev) =>
+//       prev.filter((m) => m.clientTempId !== clientTempId)
+//     );
+
+//     alert("Something went wrong");
+//   }
+// }
 //   useEffect(() => {
 //     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 //   }, [messages]);
 
-//    if (status === "loading") {
-//   return null;
-// }
+//   if (status === "loading" || !userId) return null;
 
-// if (!userId) {
-//   return null;
-// }
 //   return (
 //     <div className="h-[80vh] bg-white border rounded-2xl flex">
 //       {/* LEFT */}
 //       <div className="w-[340px] border-r bg-[#F7FAFA] p-4 space-y-2 overflow-auto">
-//         {convos.map((c) => (
-//           <button
-//             key={c.id}
-//             onClick={() => setActive(c)}
-//             className={`w-full text-left p-3 rounded-xl border ${
-//               active?.id === c.id ? "bg-white border-[#4CB6B6]" : "bg-white/60"
-//             }`}
-//           >
-//             <div className="flex items-center gap-3">
-//               <img
-//                 src={c.tutor.photo || "/default-avatar.png"}
-//                 className="w-10 h-10 rounded-full object-cover"
-//                 alt="tutor"
-//               />
-//               <div className="flex-1 flex justify-between">
-//                 <p className="font-medium">{c.tutor.name}</p>
-//                 {c.unread > 0 && (
-//                   <span className="text-xs bg-red-500 text-white px-2 rounded-full">
-//                     {c.unread}
-//                   </span>
-//                 )}
+//         {convos.map((c) => {
+//           const person = getPerson(c);
+
+//           return (
+//             <button
+//               key={c.id}
+//               onClick={() => setActive(c)}
+//               className={`w-full text-left p-3 rounded-xl border ${
+//                 active?.id === c.id ? "bg-white border-[#4CB6B6]" : "bg-white/60"
+//               }`}
+//             >
+//               <div className="flex items-center gap-3">
+//                 <img
+//                   src={person.photo}
+//                   className="w-10 h-10 rounded-full object-cover"
+//                   alt="user"
+//                 />
+//                 <div className="flex-1 flex justify-between">
+//                   <div>
+//                     <p className="font-medium">{person.name}</p>
+//                     <p className="text-xs text-gray-500">{person.label}</p>
+//                   </div>
+//                   {c.unread > 0 && (
+//                     <span className="min-w-[22px] h-[22px] flex items-center justify-center text-[11px] bg-red-500 text-white rounded-full">
+//   {c.unread}
+// </span>
+
+//                   )}
+//                 </div>
 //               </div>
-//             </div>
-//           </button>
-//         ))}
+//             </button>
+//           );
+//         })}
 //       </div>
 
 //       {/* RIGHT */}
 //       <div className="flex-1 flex flex-col">
-//         {/* HEADER WITH PHOTO */}
 //         <div className="p-4 border-b flex items-center gap-3 bg-white">
 //           {active ? (
-//             <>
-//               <img
-//                 src={active.tutor.photo || "/default-avatar.png"}
-//                 className="w-10 h-10 rounded-full object-cover"
-//                 alt="tutor"
-//               />
-//               <div>
-//   <p className="font-semibold text-[#004B4B]">{active.tutor.name}</p>
-
-//   <p className="text-xs text-gray-500">
-//     {active?.type === "THRIFT"
-//       ? "🛒 Thrift Inquiry"
-//       : "TutorChat"}
-//   </p>
-// </div>
-
-//             </>
+//             (() => {
+//               const person = getPerson(active);
+//               return (
+//                 <>
+//                   <img src={person.photo} className="w-10 h-10 rounded-full object-cover" />
+//                   <div>
+//                     <p className="font-semibold text-[#004B4B]">{person.name}</p>
+//                     <p className="text-xs text-gray-500">{person.label}</p>
+//                   </div>
+//                 </>
+//               );
+//             })()
 //           ) : (
 //             <p className="font-semibold text-gray-500">Select chat</p>
 //           )}
@@ -1101,6 +288,7 @@
 //         <div className="flex-1 p-4 overflow-auto space-y-2">
 //           {messages.map((m, i) => {
 //             const mine = m.senderUserId === userId;
+//             const person = getPerson(active);
 
 //             return (
 //               <div
@@ -1108,11 +296,7 @@
 //                 className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
 //               >
 //                 {!mine && (
-//                   <img
-//                     src={active?.tutor.photo || "/default-avatar.png"}
-//                     className="w-8 h-8 rounded-full object-cover"
-//                     alt="tutor"
-//                   />
+//                   <img src={person.photo} className="w-8 h-8 rounded-full object-cover" />
 //                 )}
 
 //                 <div
@@ -1135,7 +319,11 @@
 //             onChange={(e) => setText(e.target.value)}
 //             disabled={!active?.allowed}
 //             className="flex-1 border rounded-xl px-3 py-2"
-//             placeholder={!active?.allowed ? "Messaging not allowed" : "Type a message..."}
+//             placeholder={
+//   !active?.allowed
+//     ? "Complete payment to continue chatting"
+//     : "Type a message..."
+// }
 //           />
 //           <button
 //             onClick={send}
@@ -1151,21 +339,21 @@
 // }
 
 
-
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
-
-/* ================= UPDATED TYPE ================= */
+/* ================= TYPES ================= */
 type Conversation = {
   id: string;
   unread: number;
   allowed: boolean;
   type: "TUTOR_SESSION" | "THRIFT";
+  lastMessage?: string;
+  lastMessageTime?: string | null;
 
   person: {
     id?: string;
@@ -1173,7 +361,6 @@ type Conversation = {
     photo?: string | null;
   } | null;
 };
-
 
 type Msg = {
   id?: string;
@@ -1185,7 +372,11 @@ type Msg = {
   clientTempId?: string;
 };
 
-/* ================= HELPER ================= */
+type ChatItem =
+  | { type: "date"; label: string; key: string }
+  | { type: "message"; key: string; message: Msg };
+
+/* ================= HELPERS ================= */
 function getPerson(c: Conversation | null) {
   if (!c?.person) {
     return {
@@ -1202,10 +393,91 @@ function getPerson(c: Conversation | null) {
   };
 }
 
+function formatListTime(dateString?: string | null) {
+  if (!dateString) return "";
 
+  const date = new Date(dateString);
+  const now = new Date();
+
+  const isSameDay =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  if (isSameDay) {
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  return date.toLocaleDateString([], {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function formatBubbleTime(dateString?: string | null) {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getDateLabel(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const thatDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffMs = today.getTime() - thatDay.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+
+  return date.toLocaleDateString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function buildChatItems(messages: Msg[]): ChatItem[] {
+  const items: ChatItem[] = [];
+  let lastLabel = "";
+
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    const label = getDateLabel(m.createdAt);
+
+    if (label !== lastLabel) {
+      items.push({
+        type: "date",
+        label,
+        key: `date-${label}-${i}`,
+      });
+      lastLabel = label;
+    }
+
+    items.push({
+      type: "message",
+      key: m.id ?? m.clientTempId ?? `msg-${i}`,
+      message: m,
+    });
+  }
+
+  return items;
+}
+
+/* ================= PAGE ================= */
 export default function StudentMessagesPage() {
   const { data: session, status } = useSession();
-
   const userId = session?.user?.id || null;
 
   const [convos, setConvos] = useState<Conversation[]>([]);
@@ -1217,9 +489,9 @@ export default function StudentMessagesPage() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const activeIdRef = useRef<string | null>(null);
   const joinedRoomRef = useRef<string | null>(null);
-  const searchParams = useSearchParams();
-const conversationIdFromUrl = searchParams?.get("conversationId");
 
+  const searchParams = useSearchParams();
+  const conversationIdFromUrl = searchParams?.get("conversationId");
 
   /* ================= SOCKET INIT ================= */
   useEffect(() => {
@@ -1234,13 +506,44 @@ const conversationIdFromUrl = searchParams?.get("conversationId");
       });
 
       s.on("receive-message", (data: Msg) => {
-        if (data?.conversationId && data.conversationId === activeIdRef.current) {
+        if (!data?.conversationId) return;
+
+        if (data.conversationId === activeIdRef.current) {
           setMessages((prev) => {
-            if (data.clientTempId && prev.some((p) => p.clientTempId === data.clientTempId)) {
+            if (
+              data.clientTempId &&
+              prev.some((p) => p.clientTempId === data.clientTempId)
+            ) {
               return prev;
             }
             return [...prev, data];
           });
+
+          setConvos((prev) =>
+            prev.map((c) =>
+              c.id === data.conversationId
+                ? {
+                    ...c,
+                    unread: 0,
+                    lastMessage: data.content,
+                    lastMessageTime: data.createdAt,
+                  }
+                : c
+            )
+          );
+        } else {
+          setConvos((prev) =>
+            prev.map((c) =>
+              c.id === data.conversationId
+                ? {
+                    ...c,
+                    unread: c.unread + 1,
+                    lastMessage: data.content,
+                    lastMessageTime: data.createdAt,
+                  }
+                : c
+            )
+          );
         }
       });
 
@@ -1253,28 +556,27 @@ const conversationIdFromUrl = searchParams?.get("conversationId");
   }, []);
 
   /* ================= LOAD CONVERSATIONS ================= */
- useEffect(() => {
-  (async () => {
-    const res = await fetch("/api/messages/conversations");
-    const data = await res.json();
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/messages/conversations");
+      const data = await res.json();
 
-    const list = data.conversations || [];
-    setConvos(list);
+      const list = data.conversations || [];
+      setConvos(list);
 
-    // 🧠 open the correct conversation from URL
-    if (conversationIdFromUrl) {
-      const match = list.find((c: any) => c.id === conversationIdFromUrl);
-      if (match) {
-        setActive(match);
-        return;
+      if (conversationIdFromUrl) {
+        const match = list.find((c: Conversation) => c.id === conversationIdFromUrl);
+        if (match) {
+          setActive(match);
+          return;
+        }
       }
-    }
 
-    // fallback (first chat)
-    if (list.length) setActive(list[0]);
-  })();
-}, [conversationIdFromUrl]);
-
+      if (list.length) {
+        setActive(list[0]);
+      }
+    })();
+  }, [conversationIdFromUrl]);
 
   /* ================= JOIN ROOM ================= */
   useEffect(() => {
@@ -1295,7 +597,22 @@ const conversationIdFromUrl = searchParams?.get("conversationId");
       const data = await res.json();
       setMessages(data.messages || []);
 
-      await fetch(`/api/messages/${conversationId}/read`, { method: "POST" });
+      await fetch(`/api/messages/${conversationId}/read`, {
+        method: "POST",
+      });
+// 🔥 notify sidebar instantly
+window.dispatchEvent(new Event("messages-updated"));
+
+      setConvos((prev) =>
+        prev.map((c) =>
+          c.id === conversationId
+            ? {
+                ...c,
+                unread: 0,
+              }
+            : c
+        )
+      );
     })();
   }, [active, socket]);
 
@@ -1318,16 +635,64 @@ const conversationIdFromUrl = searchParams?.get("conversationId");
     };
 
     setMessages((prev) => [...prev, temp]);
+
+    setConvos((prev) =>
+      prev.map((c) =>
+        c.id === active.id
+          ? {
+              ...c,
+              lastMessage: temp.content,
+              lastMessageTime: temp.createdAt,
+            }
+          : c
+      )
+    );
+
     setText("");
 
-    await fetch(`/api/messages/${active.id}/send`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: temp.content }),
-    });
+    try {
+      const res = await fetch(`/api/messages/${active.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: temp.content }),
+      });
 
-    socket.emit("send-message", temp);
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.error === "PAYMENT_OVERDUE") {
+          alert(data.message || "Please complete your payment first.");
+
+          setMessages((prev) =>
+            prev.filter((m) => m.clientTempId !== clientTempId)
+          );
+
+          window.location.href = "/dashboard/payments";
+          return;
+        }
+
+        alert(data.error || "Failed to send message");
+
+        setMessages((prev) =>
+          prev.filter((m) => m.clientTempId !== clientTempId)
+        );
+
+        return;
+      }
+
+      socket.emit("send-message", temp);
+    } catch (err) {
+      console.error("SEND ERROR:", err);
+
+      setMessages((prev) =>
+        prev.filter((m) => m.clientTempId !== clientTempId)
+      );
+
+      alert("Something went wrong");
+    }
   }
+
+  const chatItems = useMemo(() => buildChatItems(messages), [messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1336,42 +701,62 @@ const conversationIdFromUrl = searchParams?.get("conversationId");
   if (status === "loading" || !userId) return null;
 
   return (
-    <div className="h-[80vh] bg-white border rounded-2xl flex">
+    <div className="h-[80vh] bg-white border rounded-2xl flex overflow-hidden">
       {/* LEFT */}
-      <div className="w-[340px] border-r bg-[#F7FAFA] p-4 space-y-2 overflow-auto">
-        {convos.map((c) => {
-          const person = getPerson(c);
+      <div className="w-[360px] border-r bg-[#F7FAFA] overflow-auto">
+        <div className="p-4 border-b bg-white">
+          <h2 className="text-2xl font-bold text-[#004B4B]">Messages</h2>
+        </div>
 
-          return (
-            <button
-              key={c.id}
-              onClick={() => setActive(c)}
-              className={`w-full text-left p-3 rounded-xl border ${
-                active?.id === c.id ? "bg-white border-[#4CB6B6]" : "bg-white/60"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <img
-                  src={person.photo}
-                  className="w-10 h-10 rounded-full object-cover"
-                  alt="user"
-                />
-                <div className="flex-1 flex justify-between">
-                  <div>
-                    <p className="font-medium">{person.name}</p>
-                    <p className="text-xs text-gray-500">{person.label}</p>
+        <div className="p-3 space-y-2">
+          {convos.map((c) => {
+            const person = getPerson(c);
+
+            return (
+              <button
+                key={c.id}
+                onClick={() => setActive(c)}
+                className={`w-full text-left p-3 rounded-2xl border transition ${
+                  active?.id === c.id
+                    ? "bg-white border-[#004B4B] shadow-sm"
+                    : "bg-white/70 border-transparent hover:bg-white"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={person.photo}
+                    className="w-12 h-12 rounded-full object-cover"
+                    alt={person.name}
+                  />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold text-sm text-gray-900 truncate">
+                        {person.name}
+                      </p>
+
+                      <span className="text-xs text-gray-500 whitespace-nowrap">
+                        {formatListTime(c.lastMessageTime)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 mt-1">
+                      <p className="text-xs text-gray-500 truncate">
+                        {c.lastMessage || person.label || "No messages yet"}
+                      </p>
+
+                      {c.unread > 0 && (
+                        <span className="min-w-[22px] h-[22px] flex items-center justify-center text-[11px] font-semibold bg-[#004B4B] text-white rounded-full">
+                          {c.unread}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {c.unread > 0 && (
-                    <span className="min-w-[22px] h-[22px] flex items-center justify-center text-[11px] bg-red-500 text-white rounded-full">
-  {c.unread}
-</span>
-
-                  )}
                 </div>
-              </div>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* RIGHT */}
@@ -1380,9 +765,14 @@ const conversationIdFromUrl = searchParams?.get("conversationId");
           {active ? (
             (() => {
               const person = getPerson(active);
+
               return (
                 <>
-                  <img src={person.photo} className="w-10 h-10 rounded-full object-cover" />
+                  <img
+                    src={person.photo}
+                    className="w-10 h-10 rounded-full object-cover"
+                    alt={person.name}
+                  />
                   <div>
                     <p className="font-semibold text-[#004B4B]">{person.name}</p>
                     <p className="text-xs text-gray-500">{person.label}</p>
@@ -1395,26 +785,52 @@ const conversationIdFromUrl = searchParams?.get("conversationId");
           )}
         </div>
 
-        <div className="flex-1 p-4 overflow-auto space-y-2">
-          {messages.map((m, i) => {
+        <div className="flex-1 p-4 overflow-auto space-y-3 bg-[#FAFCFC]">
+          {chatItems.map((item) => {
+            if (item.type === "date") {
+              return (
+                <div key={item.key} className="flex justify-center">
+                  <span className="px-3 py-1 rounded-full text-xs bg-[#E7F1F1] text-[#004B4B] border">
+                    {item.label}
+                  </span>
+                </div>
+              );
+            }
+
+            const m = item.message;
             const mine = m.senderUserId === userId;
             const person = getPerson(active);
 
             return (
               <div
-                key={m.id ?? m.clientTempId ?? i}
-                className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
+                key={item.key}
+                className={`flex items-end gap-2 ${
+                  mine ? "justify-end" : "justify-start"
+                }`}
               >
                 {!mine && (
-                  <img src={person.photo} className="w-8 h-8 rounded-full object-cover" />
+                  <img
+                    src={person.photo}
+                    className="w-8 h-8 rounded-full object-cover"
+                    alt={person.name}
+                  />
                 )}
 
                 <div
                   className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm ${
-                    mine ? "bg-[#4CB6B6] text-white" : "bg-white border"
+                    mine
+                      ? "bg-[#4CB6B6] text-white"
+                      : "bg-white border text-gray-800"
                   }`}
                 >
-                  {m.content}
+                  <p>{m.content}</p>
+                  <p
+                    className={`mt-1 text-[11px] text-right ${
+                      mine ? "text-white/80" : "text-gray-400"
+                    }`}
+                  >
+                    {formatBubbleTime(m.createdAt)}
+                  </p>
                 </div>
               </div>
             );
@@ -1423,14 +839,22 @@ const conversationIdFromUrl = searchParams?.get("conversationId");
           <div ref={bottomRef} />
         </div>
 
-        <div className="p-3 border-t flex gap-2">
+        <div className="p-3 border-t flex gap-2 bg-white">
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") send();
+            }}
             disabled={!active?.allowed}
             className="flex-1 border rounded-xl px-3 py-2"
-            placeholder={!active?.allowed ? "Messaging not allowed" : "Type a message..."}
+            placeholder={
+              !active?.allowed
+                ? "Complete payment to continue chatting"
+                : "Type a message..."
+            }
           />
+
           <button
             onClick={send}
             disabled={!active?.allowed}

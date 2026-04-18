@@ -1,3 +1,5 @@
+
+
 // import type { AuthOptions } from "next-auth";
 // import { PrismaAdapter } from "@auth/prisma-adapter";
 // import GoogleProvider from "next-auth/providers/google";
@@ -14,12 +16,9 @@
 //     GoogleProvider({
 //       clientId: process.env.GOOGLE_CLIENT_ID!,
 //       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-
-//       // Always show account chooser
+//       allowDangerousEmailAccountLinking: true,
 //       authorization: {
-//         params: {
-//           prompt: "select_account",
-//         },
+//         params: { prompt: "select_account" },
 //       },
 //     }),
 
@@ -31,36 +30,38 @@
 //       },
 
 //       async authorize(credentials) {
-//         if (!credentials?.email || !credentials.password) {
-//           throw new Error("Missing credentials");
-//         }
+//   if (!credentials?.email || !credentials.password) {
+//     throw new Error("Missing credentials");
+//   }
 
-//         const user = await prisma.user.findUnique({
-//           where: { email: credentials.email },
-//         });
+//   const user = await prisma.user.findUnique({
+//     where: { email: credentials.email },
+//   });
 
-//         if (!user) {
-//           throw new Error("No account found with this email");
-//         }
+//   console.log("CREDENTIAL LOGIN EMAIL:", credentials.email);
+//   console.log("USER FOUND:", user);
 
-//         // Email must be verified
-//         if (!user.emailVerified) {
-//           throw new Error("Please verify your email before logging in.");
-//         }
+//   if (!user) throw new Error("No account found with this email");
 
-//         // Prevent password login for Google users
-//         if (!user.password) {
-//           throw new Error("This account uses Google login only.");
-//         }
+//   // ✅ 🚨 ADD THIS (VERY IMPORTANT)
+//   if (user.status === "SUSPENDED") {
+//     throw new Error("Your account has been suspended. Contact support.");
+//   }
 
-//         const isValid = await compare(credentials.password, user.password);
+//   if (!user.emailVerified) {
+//     throw new Error("Please verify your email before logging in.");
+//   }
 
-//         if (!isValid) {
-//           throw new Error("Invalid email or password");
-//         }
+//   if (!user.password) {
+//     throw new Error("This account uses Google login only.");
+//   }
 
-//         return user;
-//       },
+//   const isValid = await compare(credentials.password, user.password);
+
+//   if (!isValid) throw new Error("Invalid email or password");
+
+//   return user;
+// },
 //     }),
 //   ],
 
@@ -70,78 +71,109 @@
 //   },
 
 //   callbacks: {
-//     /**
-//      * SIGN-IN CALLBACK
-//      */
+
+//     /* ================= SIGN-IN ================= */
+
 //     async signIn({ user, account }) {
-//       if (account?.provider === "google") {
-//         const existingUser = await prisma.user.findUnique({
-//           where: { email: user.email! },
-//         });
 
-//         // If email already belongs to credentials account → block Google login
-//         if (existingUser && existingUser.password) {
-//           return false;
-//         }
+//   const dbUser = await prisma.user.findUnique({
+//     where: { email: user.email! }
+//   });
 
-//         // Ensure provider is set correctly
-//         if (existingUser && existingUser.authProvider !== "GOOGLE") {
-//           await prisma.user.update({
-//             where: { email: user.email! },
-//             data: {
-//               authProvider: "GOOGLE",
-//               emailVerified: new Date(),
-//             },
-//           });
-//         }
-//       }
+//   // 🚨 BLOCK SUSPENDED USERS
+// if (dbUser?.status === "SUSPENDED") {
+//   throw new Error("SUSPENDED");
+// }
 
-//       return true;
-//     },
+//   if (account?.provider === "google") {
 
-//     /**
-//      * JWT CALLBACK
-//      */
+//     if (dbUser && !dbUser.emailVerified) {
+//       await prisma.user.update({
+//         where: { id: dbUser.id },
+//         data: { emailVerified: new Date() }
+//       });
+//     }
+
+//   }
+
+//   return true;
+// },
+
+//     /* ================= JWT ================= */
+
 //     async jwt({ token, user, account }) {
-//       // Initial login
+
+//       console.log("===== JWT CALLBACK =====");
+
+//       /* First login */
+
 //       if (user) {
 //         token.id = (user as any).id;
+//         token.email = user.email;
+//         token.isSuspended = (user as any).isSuspended || false;
 //       }
 
-//       if (account) {
-//         token.loginType = account.provider;
-//       }
+//       /* Google login */
 
-//       // Always sync latest DB values
-//       if (token.id) {
+//       if (account?.provider === "google") {
+
 //         const dbUser = await prisma.user.findUnique({
-//           where: { id: token.id as string },
-//           select: {
-//             name: true,
-//             phone: true,
-//             grade: true,
-//             image: true,
-//             createdAt: true,
-//           },
+//           where: { email: token.email as string },
 //         });
 
 //         if (dbUser) {
-//           token.name = dbUser.name;
-//           token.phone = dbUser.phone;
-//           token.grade = dbUser.grade;
-//           token.image = dbUser.image;
-//           (token as any).createdAt = dbUser.createdAt;
+//           token.id = dbUser.id;
 //         }
+
+//         token.loginType = "google";
+
+//         /* NEW: capture role from login page */
+//         token.role = (account as any)?.params?.role || "student";
 //       }
+
+//       /* Refresh user data */
+// if (token.id) {
+//   const dbUser = await prisma.user.findUnique({
+//     where: { id: token.id as string },
+//     select: {
+//       name: true,
+//       phone: true,
+//       grade: true,
+//       image: true,
+//       createdAt: true,
+//       status: true,
+//        suspendedBy: true,
+//     },
+//   });
+
+//   if (dbUser) {
+//     token.name = dbUser.name;
+//     token.phone = dbUser.phone;
+//     token.grade = dbUser.grade;
+//     token.image = dbUser.image;
+//     (token as any).createdAt = dbUser.createdAt;
+
+//     // ✅ CRITICAL
+//     token.isSuspended = dbUser.status === "SUSPENDED";
+//     token.suspendedBy = dbUser.suspendedBy;
+//   }
+// }
+
+//       console.log("TOKEN BEFORE RETURN:", token);
 
 //       return token;
 //     },
 
-//     /**
-//      * SESSION CALLBACK
-//      */
+//     /* ================= SESSION ================= */
+
 //     async session({ session, token }) {
+
+//       console.log("===== SESSION CALLBACK =====");
+//       console.log("Token user id:", token.id);
+//       console.log("Session email:", session.user?.email);
+
 //       if (session.user) {
+
 //         (session.user as any).id = token.id as string;
 //         (session.user as any).name = token.name as string;
 //         (session.user as any).phone = token.phone ?? null;
@@ -149,8 +181,13 @@
 //         (session.user as any).image = token.image ?? null;
 //         (session.user as any).loginType = token.loginType as string;
 //         (session.user as any).createdAt = (token as any).createdAt ?? null;
+       
+//         (session.user as any).isSuspended = token.isSuspended || false;
+//         (session.user as any).suspendedBy = token.suspendedBy;
+        
+//         /* NEW: expose role to session */
+//         (session.user as any).role = token.role ?? "student";
 
-//         // Google users require profile completion
 //         if (token.loginType === "google") {
 //           (session.user as any).profileIncomplete =
 //             !token.phone || !token.grade;
@@ -164,6 +201,22 @@
 //   },
 // };
 
+// import { getServerSession } from "next-auth";
+
+// /* GET USER FROM REQUEST */
+// export async function getUserFromRequest() {
+//   const session = await getServerSession(authOptions);
+
+//   if (!session?.user) {
+//     return null;
+//   }
+
+//   return {
+//     id: (session.user as any).id,
+//     email: session.user.email,
+//     name: session.user.name,
+//   };
+// }
 
 
 import type { AuthOptions } from "next-auth";
@@ -182,6 +235,7 @@ export const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: { prompt: "select_account" },
       },
@@ -208,6 +262,8 @@ export const authOptions: AuthOptions = {
 
         if (!user) throw new Error("No account found with this email");
 
+        // ❌ REMOVED: suspension block (IMPORTANT)
+
         if (!user.emailVerified) {
           throw new Error("Please verify your email before logging in.");
         }
@@ -231,92 +287,103 @@ export const authOptions: AuthOptions = {
   },
 
   callbacks: {
-    /**
-     * SIGN-IN CALLBACK
-     */
-   async signIn({ user, account }) {
 
-  if (account?.provider === "google") {
+    /* ================= SIGN-IN ================= */
 
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email! }
-    });
+    async signIn({ user, account }) {
 
-    if (dbUser && !dbUser.emailVerified) {
-      await prisma.user.update({
-        where: { id: dbUser.id },
-        data: { emailVerified: new Date() }
+      const dbUser = await prisma.user.findUnique({
+        where: { email: user.email! }
       });
-    }
 
-  }
+      // ❌ REMOVED: suspension block (IMPORTANT)
 
-  return true;
-},
-    /**
-     * JWT CALLBACK
-     */
- 
-async jwt({ token, user, account }) {
-  console.log("===== JWT CALLBACK =====");
+      if (account?.provider === "google") {
 
-  // When login first happens
-  if (user) {
-    token.id = (user as any).id;
-    token.email = user.email;
-  }
+        if (dbUser && !dbUser.emailVerified) {
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { emailVerified: new Date() }
+          });
+        }
 
-  // When Google login happens
-  if (account?.provider === "google") {
-    const dbUser = await prisma.user.findUnique({
-      where: { email: token.email as string },
-    });
+      }
 
-    if (dbUser) {
-      token.id = dbUser.id;
-    }
+      return true;
+    },
 
-    token.loginType = "google";
-  }
+    /* ================= JWT ================= */
 
-  // Always refresh user data from DB
-  if (token.id) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: token.id as string },
-      select: {
-        name: true,
-        phone: true,
-        grade: true,
-        image: true,
-        createdAt: true,
-      },
-    });
+    async jwt({ token, user, account }) {
 
-    if (dbUser) {
-      token.name = dbUser.name;
-      token.phone = dbUser.phone;
-      token.grade = dbUser.grade;
-      token.image = dbUser.image;
-      (token as any).createdAt = dbUser.createdAt;
-    }
-  }
+      console.log("===== JWT CALLBACK =====");
 
-  console.log("TOKEN BEFORE RETURN:", token);
+      /* First login */
 
-  return token;
-},
+      if (user) {
+        token.id = (user as any).id;
+        token.email = user.email;
+      }
 
+      /* Google login */
 
+      if (account?.provider === "google") {
 
-    /**
-     * SESSION CALLBACK
-     */
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email as string },
+        });
+
+        if (dbUser) {
+          token.id = dbUser.id;
+        }
+
+        token.loginType = "google";
+
+        token.role = (account as any)?.params?.role || "student";
+      }
+
+      /* Refresh user data */
+
+      if (token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: {
+            name: true,
+            phone: true,
+            grade: true,
+            image: true,
+            createdAt: true,
+            status: true,
+            suspendedBy: true,
+          },
+        });
+
+        if (dbUser) {
+          token.name = dbUser.name;
+          token.phone = dbUser.phone;
+          token.grade = dbUser.grade;
+          token.image = dbUser.image;
+          (token as any).createdAt = dbUser.createdAt;
+
+          // ✅ NEW: store status but DO NOT block login
+          token.userStatus = dbUser.status;
+          token.suspendedBy = dbUser.suspendedBy;
+        }
+      }
+
+      console.log("TOKEN BEFORE RETURN:", token);
+
+      return token;
+    },
+
+    /* ================= SESSION ================= */
+
     async session({ session, token }) {
+
       console.log("===== SESSION CALLBACK =====");
-      console.log("Token user id:", token.id);
-      console.log("Session email:", session.user?.email);
 
       if (session.user) {
+
         (session.user as any).id = token.id as string;
         (session.user as any).name = token.name as string;
         (session.user as any).phone = token.phone ?? null;
@@ -324,6 +391,12 @@ async jwt({ token, user, account }) {
         (session.user as any).image = token.image ?? null;
         (session.user as any).loginType = token.loginType as string;
         (session.user as any).createdAt = (token as any).createdAt ?? null;
+
+        // ✅ UPDATED
+        (session.user as any).userStatus = token.userStatus;
+        (session.user as any).suspendedBy = token.suspendedBy;
+
+        (session.user as any).role = token.role ?? "student";
 
         if (token.loginType === "google") {
           (session.user as any).profileIncomplete =
@@ -338,3 +411,20 @@ async jwt({ token, user, account }) {
   },
 };
 
+/* ================= GET USER ================= */
+
+import { getServerSession } from "next-auth";
+
+export async function getUserFromRequest() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    return null;
+  }
+
+  return {
+    id: (session.user as any).id,
+    email: session.user.email,
+    name: session.user.name,
+  };
+}

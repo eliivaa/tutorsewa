@@ -7,37 +7,36 @@ export async function GET() {
       include: {
         student: true,
         tutor: true,
-        payments: {
-          where: {
-            status: {
-               in: ["HALF_PAID", "FULL_PAID", "REMAINING_DUE"],
-            },
-          },
-        },
+       payments: true,
       },
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    const rows = bookings.map((b) => {
-      const totalPaid = b.payments.reduce(
-        (sum, p) => sum + (p.paidAmount ?? 0),
-        0
-      );
+   const rows = bookings.map((b) => {
+  const refunded = b.payments.some(p => p.status === "REFUNDED");
 
-      return {
-        id: b.id,
-        student: b.student.name ?? b.student.email,
-        tutor: b.tutor.name,
-        subject: b.subject,
-        date: b.startTime,
-        totalAmount: b.totalAmount,
-        paidAmount: totalPaid,
-        remainingAmount: b.totalAmount - totalPaid,
-        paymentStatus: b.paymentStatus,
-      };
-    });
+  const totalPaid = b.payments.reduce(
+    (sum, p) => sum + (p.paidAmount ?? 0),
+    0
+  );
+
+  return {
+    id: b.id,
+    student: b.student.name ?? b.student.email,
+    tutor: b.tutor.name,
+    subject: b.subject,
+    date: b.startTime,
+    totalAmount: b.totalAmount,
+
+    paidAmount: refunded ? 0 : totalPaid,
+    remainingAmount: refunded ? 0 : b.totalAmount - totalPaid,
+
+    paymentStatus: refunded ? "REFUNDED" : b.paymentStatus,
+     cancelledBy: b.cancelledBy,
+  };
+});
 
     return NextResponse.json({ rows });
   } catch (error) {

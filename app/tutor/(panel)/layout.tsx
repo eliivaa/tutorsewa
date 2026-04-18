@@ -83,6 +83,8 @@ export default function TutorLayout({
 
   const [unread, setUnread] = useState(0);
 
+  const [bookingRequests, setBookingRequests] = useState(0);
+
 useEffect(() => {
   const fetchUnread = () => {
     fetch("/api/tutor/messages/unread-count")
@@ -97,6 +99,19 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
+useEffect(() => {
+  const fetchRequests = () => {
+    fetch("/api/tutor/bookings/request-count")
+      .then((r) => r.json())
+      .then((d) => setBookingRequests(d.count || 0));
+  };
+
+  fetchRequests();
+
+  const interval = setInterval(fetchRequests, 5000);
+
+  return () => clearInterval(interval);
+}, []);
 
   useEffect(() => {
     fetch("/api/tutor/me")
@@ -148,11 +163,12 @@ useEffect(() => {
             disabled={!isApproved}
           />
 
-          <SidebarLink
-            label="Bookings"
-            href="/tutor/bookings"
-            disabled={!isApproved}
-          />
+         <SidebarLink
+  label="Bookings"
+  href="/tutor/bookings"
+  disabled={!isApproved}
+  badge={bookingRequests}
+/>
 
           <SidebarLink
             label="Earnings"
@@ -160,7 +176,7 @@ useEffect(() => {
             disabled={!isApproved}
           />
 
-          <SidebarLink label="Logout" href="/logout" />
+        <SidebarLink label="Logout" href="/logout" />
         </aside>
 
         {/* PAGE CONTENT */}

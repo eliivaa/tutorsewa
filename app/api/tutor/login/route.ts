@@ -115,14 +115,21 @@ export async function POST(req: Request) {
     { status: 401 }
   );
 }
-    const valid = await bcrypt.compare(password, tutor.password);
+    if (!tutor || !tutor.password) {
+  return NextResponse.json(
+    { error: "Invalid email or password" },
+    { status: 401 }
+  );
+}
 
-    if (!valid) {
-      return NextResponse.json(
-        { error: "Incorrect password" },
-        { status: 400 }
-      );
-    }
+const valid = await bcrypt.compare(password, tutor.password);
+
+if (!valid) {
+  return NextResponse.json(
+    { error: "Invalid email or password" },
+    { status: 401 }
+  );
+}
 
     // 🔐 Create JWT
     const token = jwt.sign(

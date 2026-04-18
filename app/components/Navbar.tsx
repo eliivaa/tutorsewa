@@ -45,9 +45,9 @@ export default function Navbar() {
         <div className="hidden md:flex space-x-6 text-sm text-[#004B4B] font-large">
           <Link href="/" className="hover:text-[#006A6A] transition">Home</Link>
           <Link href="/find-tutor" className="hover:text-[#006A6A] transition">Find Tutors</Link>
-          <Link href="#how-it-works" className="hover:text-[#006A6A] transition">How It Works</Link>
-          <Link href="#about-us" className="hover:text-[#006A6A] transition">About Us</Link>
-          <Link href="#contact-us" className="hover:text-[#006A6A] transition">Contact Us</Link>
+          <Link href="/how-it-works" className="hover:text-[#006A6A] transition">How It Works</Link>
+          <Link href="/#about-us"className="hover:text-[#006A6A] transition">About Us</Link>
+          <Link href="/#contact-us" className="hover:text-[#006A6A] transition">Contact Us</Link>
         </div>
 
         {/* Buttons */}

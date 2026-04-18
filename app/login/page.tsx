@@ -1,8 +1,7 @@
-
 // "use client";
 
 // import { useState, useEffect } from "react";
-// import { signIn } from "next-auth/react";
+// import { signIn, signOut } from "next-auth/react";
 // import toast, { Toaster } from "react-hot-toast";
 // import Image from "next/image";
 // import Link from "next/link";
@@ -28,25 +27,44 @@
 //     }
 //   }, [searchParams, router]);
 
-//   const handleLogin = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     setLoading(true);
+// const handleLogin = async (e: React.FormEvent) => {
+//   e.preventDefault();
+//   setLoading(true);
 
-//     const res = await signIn("credentials", {
-//       redirect: false,
-//       email: form.email,
-//       password: form.password,
-//     });
+//   const res = await signIn("credentials", {
+//     redirect: false,
+//     email: form.email,
+//     password: form.password,
+//   });
 
-//     setLoading(false);
+//   setLoading(false);
 
-//     if (res?.error) {
-//       toast.error("Invalid email or password");
-//       return;
-//     }
+//   if (res?.error) {
+//     // 🚨 HANDLE SUSPENDED USER
+//    if (res?.error?.toLowerCase().includes("suspended")) {
+//   router.push("/account-suspended");
+//   return;
+// }
 
-//     toast.success("Login successful!");
-//     router.push("/dashboard");
+//     // other errors
+//     toast.error(res.error || "Invalid email or password");
+//     return;
+//   }
+
+//   toast.success("Login successful!");
+//   router.push("/dashboard");
+// };
+
+//   // FIX: Always clear old session before Google login
+//  const handleGoogleLogin = async () => {
+//   await signOut({ redirect: false });
+
+//   await signIn("google", {
+//     callbackUrl: "/dashboard",
+//     role: "student",
+//   },
+//   { prompt: "select_account" }
+// );
 //   };
 
 //   return (
@@ -55,7 +73,7 @@
 
 //       <div className="bg-white shadow-xl rounded-xl overflow-hidden flex flex-col md:flex-row md:w-[850px] border border-[#48A6A7]/30">
 
-//         {/* LEFT SIDE - LOGIN FORM */}
+//         {/* LEFT SIDE */}
 //         <div className="flex-1 p-8">
 //           <h1 className="text-2xl font-bold text-[#006A6A] text-center mb-6">
 //             Welcome Back!
@@ -83,7 +101,6 @@
 //               required
 //             />
 
-//             {/* Forgot Password */}
 //             <p className="text-sm text-right">
 //               <Link
 //                 href="/forgot-password"
@@ -102,7 +119,6 @@
 //             </button>
 //           </form>
 
-//           {/* Register Link */}
 //           <p className="text-sm text-center mt-4">
 //             Don’t have an account?{" "}
 //             <Link
@@ -113,52 +129,40 @@
 //             </Link>
 //           </p>
 
-//           {/* Divider */}
 //           <div className="text-center mt-5 text-gray-500 text-sm">
 //             Or continue with
 //           </div>
 
 //           {/* Google Login */}
 //           <button
-//             onClick={() =>
-//               signIn(
-//   "google",
-//   { callbackUrl: "/dashboard" },
-//   { prompt: "select_account" }
-// )
-//             }
+//             onClick={handleGoogleLogin}
 //             className="w-full border rounded-md py-2 mt-3 flex justify-center items-center gap-2 hover:bg-gray-50 transition"
 //           >
-//             <Image
-//               src="/google.svg"
-//               alt="Google"
-//               width={20}
-//               height={20}
-//             />
+//             <Image src="/google.svg" alt="Google" width={20} height={20} />
 //             Google
 //           </button>
 //         </div>
 
-//         {/* RIGHT SIDE - LOTTIE ANIMATION */}
+//         {/* RIGHT SIDE */}
 //         <div className="hidden md:flex flex-col justify-center items-center bg-[#48A6A7]/10 w-1/2 p-8">
-//           <Lottie
-//             animationData={animationData}
-//             loop
-//             className="w-64"
-//           />
+//           <Lottie animationData={animationData} loop className="w-64" />
+
 //           <h4 className="text-[#006A6A] font-semibold mt-4 text-center">
 //             Secure & Protected Login
 //           </h4>
+
 //           <p className="text-sm text-gray-600 text-center mt-2">
 //             Your data is encrypted and fully protected.
 //           </p>
 //         </div>
-
 //       </div>
 //     </div>
 //   );
 // }
 
+
+
+// after suspend
 
 
 "use client";
@@ -183,43 +187,67 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Remove NextAuth default error message
   useEffect(() => {
-    if (searchParams?.get("error")) {
-      router.replace("/login");
-    }
-  }, [searchParams, router]);
+  const error = searchParams?.get("error");
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  if (!error) return;
 
-    const res = await signIn("credentials", {
-      redirect: false,
-      email: form.email,
-      password: form.password,
-    });
+  // 🚨 Handle suspended (Google login case)
+  if (error === "SUSPENDED") {
+    router.push("/account-suspended");
+    return;
+  }
 
-    setLoading(false);
+  // fallback (NextAuth may send this)
+  if (error === "AccessDenied") {
+    router.push("/account-suspended");
+    return;
+  }
 
-    if (res?.error) {
-      toast.error("Invalid email or password");
-      return;
-    }
+  // other errors
+  toast.error("Login failed. Please try again.");
 
-    toast.success("Login successful!");
-    router.push("/dashboard");
-  };
+}, [searchParams, router]);
+  
+
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+
+  const res = await signIn("credentials", {
+    redirect: false,
+    email: form.email,
+    password: form.password,
+  });
+
+  setLoading(false);
+
+  if (res?.error) {
+    // 🚨 HANDLE SUSPENDED USER
+   if (res?.error?.toLowerCase().includes("suspended")) {
+  router.push("/account-suspended");
+  return;
+}
+
+    // other errors
+    toast.error(res.error || "Invalid email or password");
+    return;
+  }
+
+  toast.success("Login successful!");
+  router.push("/dashboard");
+};
 
   // FIX: Always clear old session before Google login
-  const handleGoogleLogin = async () => {
-    await signOut({ redirect: false });
+ const handleGoogleLogin = async () => {
+  await signOut({ redirect: false });
 
-    await signIn(
-      "google",
-      { callbackUrl: "/dashboard" },
-      { prompt: "select_account" }
-    );
+  await signIn("google", {
+    callbackUrl: "/dashboard",
+    role: "student",
+  },
+  { prompt: "select_account" }
+);
   };
 
   return (
